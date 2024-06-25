@@ -7,6 +7,8 @@ from flask_sock import Sock
 from flask_socketio import SocketIO, emit
 
 
+import concurrent.futures
+
 import socketio
 import eventlet
 import eventlet.wsgi
@@ -236,7 +238,7 @@ from customerAgent import customerAgent
 
 
 class webSocketServer:
-    def __init__(self, app , sio , lock , userServer_UserManagerPipe=None):
+    def __init__(self, app , sio , lock , sessionSupervisorInteraction , userServer_UserManagerPipe=None):
         self.app = app
         self.sio = sio
         print("Sio of Websocket Server : " , self.sio)
@@ -245,8 +247,8 @@ class webSocketServer:
         self.user_byte_stream_mapping = {}
         self.userServer_UserManagerPipe = userServer_UserManagerPipe
         
-        # if sessionSupervisorInteraction:
-        #     self.sio.start_background_task(sessionSupervisorInteraction.listenToUserManager)
+        if sessionSupervisorInteraction:
+            self.sio.start_background_task(sessionSupervisorInteraction.listenToUserManager)
     
 
 
@@ -342,8 +344,8 @@ class sessionSupervisorInteraction():
         newData = pickle.dumps(data)
         print(f"To The Following User the Data is being Send : {userId}")
         print(f"Length of The Message that is being Send to the User : {len(newData)}")
-        print("Sleeping for Next 10 Seconds !!!")
-        time.sleep(10)
+        #print("Sleeping for Next 10 Seconds !!!")
+        #time.sleep(10)
         self.socketLock.acquire()
         print("Socket Has Been Acquired !!!")
         self.sio.emit('message', newData, room=userId)
@@ -351,16 +353,21 @@ class sessionSupervisorInteraction():
         self.socketLock.release()
 
     def listenToUserManager(self):
+        print("Started Listening to the User Manager Messages !!!")
         while True:
             if self.userServer_UserManagerPipe.poll():
                 message = self.userServer_UserManagerPipe.recv()
                 print("Request Received From User Manager !!!")
                 if message["TYPE"] == "SEND_MESSAGE_TO_USER":
                     print("The Request to Send Message to User is Being Executed !!!")
-                    self.sio.start_background_task(self.sendMessageToParticularUser , message["DATA"])
-                    #self.sendMessageToParticularUser(message["DATA"])
+                    # with concurrent.futures.ThreadPoolExecutor() as executor:
+                    #     future = executor.submit(self.sendMessageToParticularUser , message["DATA"])
+                    #     result = future.result()
+                    # self.sio.start_background_task(self.sendMessageToParticularUser , message["DATA"])
+                    self.sendMessageToParticularUser(message["DATA"])
             else:
-                time.sleep(1)
+                #print("Sleeping For 1 Second to Listen to User Manager Messages !!!")
+                eventlet.sleep(1.5)
 
 
 
@@ -373,9 +380,14 @@ class UserServer():
         sio = socketio.Server(ping_timeout=60, ping_interval=25 , max_http_buffer_size=1024*1024*100)
         app = socketio.WSGIApp(sio) 
         socketLock = threading.Lock()
+
         
 
-        socketServer = webSocketServer(app , sio , socketLock , userServer_UserManagerPipe)
+        webhook_App = Flask(__name__)
+        sessionSupervisor = sessionSupervisorInteraction(sio , socketLock , userServer_UserManagerPipe)
+        
+
+        socketServer = webSocketServer(app , sio , socketLock , sessionSupervisor , userServer_UserManagerPipe)
         socketServer.connect()
         socketServer.disconnect()
         socketServer.message_in_batches()
@@ -383,14 +395,11 @@ class UserServer():
 
         global ipAddress
         ipAddress = "127.0.0.1"
-
-        webhook_App = Flask(__name__)
-        sessionSupervisor = sessionSupervisorInteraction(sio , socketLock , userServer_UserManagerPipe)
-        listenToUserManagerThread = threading.Thread(target=sessionSupervisor.listenToUserManager)
-        listenToUserManagerThread.start()
+        # listenToUserManagerThread = threading.Thread(target=sessionSupervisor.listenToUserManager)
+        # listenToUserManagerThread.start()
 
         eventlet.wsgi.server(eventlet.listen((ipAddress, 6000)), app)
-        listenToUserManagerThread.join()
+        # listenToUserManagerThread.join()
 
 
 
