@@ -41,32 +41,145 @@ import socketio
 
 
 
-sio = socketio.Client()
-
-@sio.event
-def connect():
-    print("I'm connected!")
-
-@sio.event
-def disconnect():
-    print("I'm disconnected!")
-
-@sio.on("response")
-def response(data):
-    print(data)
+import asyncio
+import websockets
+import threading
+import pickle
+import numpy as np
 
 
+# sio = socketio.Client()
+
+# @sio.event
+# def connect():
+#     print("I'm connected!")
+
+# @sio.event
+# def disconnect():
+#     print("I'm disconnected!")
+
+# @sio.on("response")
+# def response(data):
+#     print("data")
 
 
+
+
+
+
+
+class Client:
+    def __init__(self, uri):
+        self.asyncLoop = None
+        self.websocket = None
+        self.uri = uri
+        self.uniqueId = None
+
+    async def connect(self):
+        print("Connecting to Server !!!!")
+        return await websockets.connect(self.uri)
+
+    async def startWriting(self):
+        while True:
+            message = input("Enter a message: ")
+            jsMsg = {"TYPE": "MESSAGE",  "DATA": "TEST"} 
+            sending_message = asyncio.create_task(self.send(pickle.dumps(jsMsg)))
+            await asyncio.gather(sending_message)
+
+    def write(self):
+        asyncio.run(self.startWriting())
+
+    def parserMessage(self , message):
+        msgType = message["TYPE"]
+        if msgType == "UNIQUE_ID":
+            self.uniqueId = message["DATA"]
+            print("Unique Id is: ", self.uniqueId)
+        
+
+    async def listen(self):
+        while True:
+            message = await self.websocket.recv()
+            message = pickle.loads(message)
+            self.parserMessage(message)
+
+    async def send(self, message):
+        # print(f"Sending: {message}")
+        # print()
+        await self.websocket.send(message)
+        # print()
+        # print("Message Send")
+
+    async def startingClientFunctionality(self):
+        self.websocket = await self.connect()
+        print("Connected to The Server !!!!")
+        listening_Coroutine = asyncio.create_task(self.listen())
+        # writing_thread = threading.Thread(target=client.write)
+        # writing_thread.start()  
+        await asyncio.gather(listening_Coroutine)
+        # writing_thread.join()
+
+    def startClient(self):
+        self.asyncLoop = asyncio.get_event_loop()
+        asyncio.run(self.startingClientFunctionality())
+
+
+
+
+def informationTransferTime(startTime , note):
+    t1 = startTime
+    t2 = time.time()
+    print("\n-------------------------------\n")
+    print("Note : " , note)
+    print("Total Time Taken : " , t2 - t1)
+    print("\n-------------------------------\n")
+
+def setupModel(setupInfo):
+    global model
+    global compilationInfo
+    global customerIdentifier
+    global userClusterSize
+    global epochs
+
+    data = setupInfo["DATA"]
+    customerIdentifier = setupInfo["CUSTOMER"]
+    userClusterSize = setupInfo["TOTAL_USERS"]
+    epochs = setupInfo["EPOCHS"]
+
+    model = keras.models.model_from_json(data["MODEL_JSON"])
+    compilationInfo = {"OPTIMIZER_CONFIG" : data["OPTIMIZER_CONFIG"] ,"LOSS" : data["LOSS"] , "METRICS" : data["METRICS"] , "LOSS_WEIGHTS" : data["LOSS_WEIGHTS"] , "WEIGHTED_METRICS" : data["WEIGHTED_METRICS"]}
+    informationTransferTime(setupInfo["TIME"] , "Time Taken to Transfer the Setup Model Information")
+    print("Model Setup Completed !!!")
+
+
+def preSetupAndTraining(data):
+    global model
+    model.set_weights(data["DATA"])
+    informationTransferTime(data["TIME"] , "Time Taken to transfer the initial Values of the Weights of the Model")
+    training_thread = threading.Thread(target = handleTraining)
+    training_thread.start()
+
+    
+
+def updateModel(data):
+    global model
+    global modelUpdate
+    model.set_weights(data["DATA"])
+    modelUpdate.set()
+    informationTransferTime(data["TIME"] , "Time Taken to Transfer the Updated Model Params")
 
 def parserMessage(message):
     msgType = message["TYPE"]
-    pass
+    if msgType == "MODEL_SETUP":
+        setupModel(message)
+    elif msgType == "TRAIN":
+        preSetupAndTraining(message)
+    elif msgType == "UPDATED_MODEL":
+        updateModel(message)
 
-@sio.event
-def message(data):
-    print('Message received from server: ', data)
-    parserMessage(data)
+# @sio.event
+# def message(data):
+#     print('Message received from server !!!')
+#     parserMessage(data)
 
 
 
@@ -74,7 +187,36 @@ def message(data):
 
 
 def getDataset(customerIdentifier):
-    pass
+    if customerIdentifier == "paarthsaxena2005@gmail.com":
+        dataPath = "C:/Users/paart/OneDrive/Documents/Paarth Workshop/Start-Up/Deep Logic/Distributed AI Testing/AIMS Plant Disease/TrainingSet"
+        NUM_CLASSES = 38
+        IMAGE_SIZE = 256
+
+        train_augmentation = ImageDataGenerator(
+            rescale=1/255.,
+            rotation_range=15,
+            shear_range=0.3,
+            zoom_range=0.2,
+            vertical_flip=True,
+            horizontal_flip=True,
+            validation_split=0.15,
+        )
+
+        test_augmentation = ImageDataGenerator(
+            rescale=1/255.,
+            rotation_range=15,
+            shear_range=0.3,
+            zoom_range=0.2,
+            vertical_flip=True,
+            horizontal_flip=True,
+        )
+
+        training_dataset = train_augmentation.flow_from_directory(dataPath, target_size=(IMAGE_SIZE, IMAGE_SIZE), batch_size=32, class_mode="categorical", shuffle=True)
+        return training_dataset
+    else:
+        pass
+        
+
     
 
 
@@ -104,21 +246,22 @@ def calculateGrads(newModel , oldModel):
 
 
 
-def handleTraining(modelInfo):
+def handleTraining():
     global model
     global epochs
     global sio 
     global customerIdentifier
-    model.compile(optimizer="adam" , loss="categorical_crossentropy", metrics=["accuracy", "top_k_categorical_accuracy"])
+    global compilationInfo
 
-    es_callback = EarlyStopping(patience=3, verbose=1)
-    reduce_lr_callback = ReduceLROnPlateau(factor=0.2, patience=2, verbose=1, min_lr=0.00035)
+    model.compile(optimizer="Adam" , loss=compilationInfo["LOSS"], metrics=compilationInfo["METRICS"] , loss_weights = compilationInfo["LOSS_WEIGHTS"] , weighted_metrics = compilationInfo["WEIGHTED_METRICS"])
+    model.optimizer = tf.keras.optimizers.deserialize(compilationInfo["OPTIMIZER_CONFIG"])
+
     prevModel = keras.models.model_from_json(model.to_json())
     
     copyModel(model , prevModel)
     for epoch_number in range(epochs):
         print("Working on Epoch Number : " , epoch_number)
-        model.fit(getDataset(customerIdentifier), epochs = 1, callbacks=[es_callback , reduce_lr_callback] , verbose = 1)
+        model.fit(getDataset(customerIdentifier), epochs = 1, verbose = 1)
         grads = calculateGrads(model , prevModel)
         print("Sending Model back to Server !!")
         msg = {"TYPE" : "MODEL_GRADS" , "DATA" : model.get_weights() , "TIME" : time.time()}
@@ -137,16 +280,34 @@ def handleTraining(modelInfo):
 #         sio.emit('USER_MESSAGE' , msg)
 
 
+# if __name__ == "__main__":
+#     print(tf.config.list_physical_devices('GPU'))
+
+#     modelUpdate = threading.Event()
+#     model = None
+#     epochs = None
+#     userClusterSize = None
+#     customerIdentifier = None
+#     compilationInfo = None
+
+#     # write_thread = threading.Thread(target=write)
+#     # write_thread.start()
+
+#     sio.connect('http://127.0.0.1:6000')
+#     sio.wait()
+
+
 if __name__ == "__main__":
     print(tf.config.list_physical_devices('GPU'))
 
     modelUpdate = threading.Event()
     model = None
     epochs = None
+    userClusterSize = None
+    customerIdentifier = None
+    compilationInfo = None
 
-    # write_thread = threading.Thread(target=write)
-    # write_thread.start()
+    client = Client("ws://127.0.0.1:6000/connect")
+    client.startClient()
 
-    sio.connect('http://127.0.0.1:7777')
-    sio.wait()
-
+    print("Client is Closing")

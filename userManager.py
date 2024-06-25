@@ -7,10 +7,10 @@ class UserManager:
         self.supervisorToPipeMapping = {} # Session Supervisor (Same As Customer Email) Linked to the Pipe associated with it
         self.supervisorToCoroutineMapping = {} # Session Supervisor (Same as Customer Email) Linked to the Coroutine associated with it
         self.userServer_Pipe = None
+        self.customerServer_Pipe = None
         self.asyncLoop = None
 
     async def handleSupervisorRequests(self , pipe , supervisorRequest , supervisorIdentityEmail):
-        print(supervisorRequest)
         message = supervisorRequest['TYPE']
         if message == "NEW_SESSION":
             print("New Session Request !!!")
@@ -29,6 +29,10 @@ class UserManager:
                 self.users = self.users[userNumber:]
 
             print("Remaining Users : " , self.users)
+        elif message == "SEND_MESSAGE_TO_USER":
+            print("Sending Message to User Server For Further Execution of The Request SEND_MESSAGE_TO_USER!!!")
+            self.userServer_Pipe.send(supervisorRequest)
+            pass
 
 
     async def listenToSupervisorMessages(self , supervisorPipe , supervisorIdentityEmail):
@@ -85,9 +89,10 @@ class UserManager:
             print("User Message Receuved by User Manager !!!")
             userMessage = serverRequest['MESSAGE']
             userId = serverRequest['USER_ID']
-            supervisor = self.userToCustomerEmailMapping[userId]
-            supervisorPipe = self.supervisorToPipeMapping[supervisor]
-            supervisorPipe.send({"USER_ID" : userId , "DATA" : userMessage})
+            if self.userToCustomerEmailMapping[userId] in self.supervisorToPipeMapping.keys():
+                supervisor = self.userToCustomerEmailMapping[userId]
+                supervisorPipe = self.supervisorToPipeMapping[supervisor]
+                supervisorPipe.send({"USER_ID" : userId , "DATA" : userMessage})
         elif message == "NEW_USER":
             print("New User Detected !!!")
             self.users.append(serverRequest['USER_ID'])
@@ -111,6 +116,8 @@ class UserManager:
 
 
     async def startFunctioning(self , customerServerPipe , userServerPipe):
+        self.userServer_Pipe = userServerPipe
+        self.customerServer_Pipe = customerServerPipe
         customerServerMessages_Coroutine = asyncio.create_task(self.listenToCustomerServerMessages(customerServerPipe))
         userServerMessages_Coroutine = asyncio.create_task(self.listenToUserServerMessages(userServerPipe))
         await asyncio.gather(customerServerMessages_Coroutine , userServerMessages_Coroutine)
