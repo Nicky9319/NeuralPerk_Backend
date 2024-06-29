@@ -4,6 +4,7 @@ import threading
 import keras
 import pickle
 import requests
+import json
 
 
 class sessionSupervisor():
@@ -132,26 +133,29 @@ class sessionSupervisor():
         print("Started the process of MODEL Training !!")
         setupMessage = {"TYPE" : "MODEL_SETUP" , "DATA" : modelData , "TOTAL_USERS" : len(self.userList) , "TIME" : time.time() , "CUSTOMER" : self.customerEmail , "EPOCHS" : self.epochs}
         self.broadcast(setupMessage)
+
+        print(type(self.model.get_weights()))
+        trainingMessage = {"TYPE" : "TRAIN" , "DATA" : self.model.get_weights() , "TIME" : time.time()}
+        self.broadcast(trainingMessage , inBytes=True)
+
+        self.gradList = [None for users in self.userList]
+
+        for epoch_number in range(self.epochs):
+            epoch_start_time = time.time()
+            finalGrads = self.getAvgGrads()
+            print("Aggregation of the Model Grads Completed !!")
+            self.applyGrad(finalGrads)
+            epoch_end_time = time.time()
+            print(f"Total Time For Training Epoch Number {epoch_number + 1} : " , epoch_end_time - epoch_start_time)
+            # st = f"Model_{epoch_number}"
+            # model.save_weights(st)
+            message = {"TYPE" : "UPDATED_MODEL" , "DATA" : self.model.get_weights() , "TIME" : time.time()}
+            print("Message has been Finalized !!")
+            self.broadcast(message=message , inBytes=True) 
+            
         print("Model Training Finished !!!")
 
-        # print(type(self.model.get_weights()))
-        # trainingMessage = {"TYPE" : "TRAIN" , "DATA" : self.model.get_weights() , "TIME" : time.time()}
-        # self.broadcast(trainingMessage , inBytes=True)
 
-        # self.gradList = [None for users in self.userList]
-
-        # for epoch_number in range(self.epochs):
-        #     epoch_start_time = time.time()
-        #     finalGrads = self.getAvgGrads()
-        #     print("Aggregation of the Model Grads Completed !!")
-        #     self.applyGrad(finalGrads)
-        #     epoch_end_time = time.time()
-        #     print(f"Total Time For Training Epoch Number {epoch_number + 1} : " , epoch_end_time - epoch_start_time)
-        #     # st = f"Model_{epoch_number}"
-        #     # model.save_weights(st)
-        #     message = {"TYPE" : "UPDATED_MODEL" , "DATA" : self.model.get_weights() , "TIME" : time.time()}
-        #     print("Message has been Finalized !!")
-        #     self.broadcast(message=message , inBytes=True) 
 
     def runAndManageSession(self , data):
         self.gradReadingEvent = threading.Event()
@@ -191,7 +195,10 @@ class sessionSupervisor():
 
         # Main Training Functionalities
 
-        self.model = keras.models.model_from_json(modelInfo["MODEL_JSON"])
+
+        print(type(modelInfo["MODEL_JSON"]))
+        #self.model = keras.models.model_from_json(modelInfo["MODEL_JSON"])
+        self.model = keras.models.model_from_json(json.dumps(modelInfo["MODEL_JSON"]))
         print(self.model.summary())
         self.epochs = modelInfo["EPOCHS"]
         

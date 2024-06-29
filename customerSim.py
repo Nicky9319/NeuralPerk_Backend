@@ -11,6 +11,9 @@ from tensorflow.keras.layers import GlobalAveragePooling2D, BatchNormalization, 
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, ReduceLROnPlateau
 from sklearn import metrics
 
+import keras
+
+import requests
 
 import json
 import time
@@ -22,6 +25,17 @@ print(tf.config.list_physical_devices('GPU'))
 
 
 tf_man = npe.Tensorflow_Manager()
+
+
+import tensorflow as tf
+from keras.preprocessing.image import ImageDataGenerator
+from keras.applications import ResNet50V2
+from keras import Model
+from keras import Input
+from keras.layers import GlobalAveragePooling2D, BatchNormalization, Dropout, Dense
+from keras.callbacks import EarlyStopping, ModelCheckpoint, ReduceLROnPlateau
+from sklearn import metrics
+
 
 NUM_CLASSES = 38
 IMAGE_SIZE = 256
@@ -40,16 +54,15 @@ base = Dropout(0.5)(base)
 output = Dense(NUM_CLASSES, activation="softmax")(base)
 
 model = Model(inputs, output)
-model.compile(optimizer="adam", loss="categorical_crossentropy", metrics=["accuracy", "top_k_categorical_accuracy"])
 
 
+model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
 
-tf_man.modelJson = model.to_json()
-tf_man.loss = "categorical_crossentropy"
-tf_man.metricsList = ["accuracy", "top_k_categorical_accuracy"]
-tf_man.optimizerConfig = model.optimizer.get_config()
-
-tf_man.setEpochs(10)
-tf_man.allConfigsDone = True
-
+tf_man.InformationTransfer(model = model , epochs = 10)
+tf_man.AllConfigs()
 tf_man.initiateSessionRequest()
+
+
+response = requests.post(f"http://127.0.0.1:5500/initializeSession" , json = {"EMAIL" : "paarthsaxena2005@gmail.com"})
+print(response.text)
+

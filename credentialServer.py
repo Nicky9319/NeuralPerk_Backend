@@ -107,7 +107,7 @@ def server_running_callback():
 
 if __name__ == '__main__':
     ipAddress = '127.0.0.1'
-    app.run(host=ipAddress, port=5555 , debug=True)
+    app.run(host=ipAddress, port=5555 , debug=False)
  
 
 

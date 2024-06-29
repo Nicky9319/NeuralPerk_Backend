@@ -313,7 +313,7 @@ class webSocketServer:
                 self.user_byte_stream_mapping[sid] = self.user_byte_stream_mapping[sid][index+5:]
                 print(self.user_byte_stream_mapping[sid])
                 self.socketLock.acquire()
-                self.sio.emit('message', pickle.dumps({"TYPE" : "RESPONSE" , "DATA" : "RECEIVED" , "TIME" : time.time()}), room=sid)
+                self.sio.emit('response', pickle.dumps({"TYPE" : "RESPONSE" , "DATA" : "RECEIVED" , "TIME" : time.time()}), room=sid)
                 self.socketLock.release()
                 #self.userMessageHandler(sid , message)
                 self.parserMessage(sid , message)
@@ -324,7 +324,7 @@ class webSocketServer:
             message = pickle.loads(data)
             print(message)
             self.socketLock.acquire()
-            self.sio.emit('message', pickle.dumps({"TYPE" : "RESPONSE" , "DATA" : "RECEIVED" , "TIME" : time.time()}), room=sid)
+            self.sio.emit('response', pickle.dumps({"TYPE" : "RESPONSE" , "DATA" : "RECEIVED" , "TIME" : time.time()}), room=sid)
             self.socketLock.release()
             #self.userMessageHandler(sid , message)
             self.parserMessage(sid , message)

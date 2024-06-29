@@ -48,6 +48,53 @@ import pickle
 import numpy as np
 
 
+
+
+
+
+
+
+sio = socketio.Client()
+
+
+
+
+def sendInBuffer(data):
+    chunk_size = 1024*1024
+    for i in range(0, len(data), chunk_size):
+        try:
+            sio.emit('message_in_batches', data[i:i+chunk_size])
+        except:
+            print("Error in Sending Data")
+            break
+    
+@sio.event
+def connect():
+    print("I'm connected!")
+
+@sio.event
+def disconnect():
+    print("I'm disconnected!")
+
+
+@sio.on('response')
+def on_response(data):
+    print("Response")
+    msg = pickle.loads(data)
+    print(msg)
+    parserMessage(msg)
+
+
+@sio.on('message')
+def on_message(data):
+    print(f"Length of Message Received : {len(data)}")
+    message = pickle.loads(data)
+    #print(message)
+    parserMessage(message)
+
+
+
+
 # sio = socketio.Client()
 
 # @sio.event
@@ -64,63 +111,6 @@ import numpy as np
 
 
 
-
-
-
-
-class Client:
-    def __init__(self, uri):
-        self.asyncLoop = None
-        self.websocket = None
-        self.uri = uri
-        self.uniqueId = None
-
-    async def connect(self):
-        print("Connecting to Server !!!!")
-        return await websockets.connect(self.uri)
-
-    async def startWriting(self):
-        while True:
-            message = input("Enter a message: ")
-            jsMsg = {"TYPE": "MESSAGE",  "DATA": "TEST"} 
-            sending_message = asyncio.create_task(self.send(pickle.dumps(jsMsg)))
-            await asyncio.gather(sending_message)
-
-    def write(self):
-        asyncio.run(self.startWriting())
-
-    def parserMessage(self , message):
-        msgType = message["TYPE"]
-        if msgType == "UNIQUE_ID":
-            self.uniqueId = message["DATA"]
-            print("Unique Id is: ", self.uniqueId)
-        
-
-    async def listen(self):
-        while True:
-            message = await self.websocket.recv()
-            message = pickle.loads(message)
-            self.parserMessage(message)
-
-    async def send(self, message):
-        # print(f"Sending: {message}")
-        # print()
-        await self.websocket.send(message)
-        # print()
-        # print("Message Send")
-
-    async def startingClientFunctionality(self):
-        self.websocket = await self.connect()
-        print("Connected to The Server !!!!")
-        listening_Coroutine = asyncio.create_task(self.listen())
-        # writing_thread = threading.Thread(target=client.write)
-        # writing_thread.start()  
-        await asyncio.gather(listening_Coroutine)
-        # writing_thread.join()
-
-    def startClient(self):
-        self.asyncLoop = asyncio.get_event_loop()
-        asyncio.run(self.startingClientFunctionality())
 
 
 
@@ -307,7 +297,7 @@ if __name__ == "__main__":
     customerIdentifier = None
     compilationInfo = None
 
-    client = Client("ws://127.0.0.1:6000/connect")
-    client.startClient()
+    sio.connect('http://localhost:6000')
+    sio.wait()
 
     print("Client is Closing")
