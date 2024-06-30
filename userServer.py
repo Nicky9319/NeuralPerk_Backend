@@ -273,15 +273,18 @@ class webSocketServer:
     
     def parserMessage(self , sid , message):
         msgType = message["TYPE"]
-        if msgType == "MODEL":
+        if msgType == "MODEL_GRADS":
             t1 = time.time()
             print("Received Model")
             t2 = message["TIME"]
             print("Time Taken to Send Model : " , t1-t2)
-            ser_data = pickle.dumps({"TYPE" : "MODEL" , "DATA" : "MODEL_WEIGHTS" , "TIME" : time.time()})
-            print("Length of Data being transmitted to the Client : " , len(ser_data))
+            #ser_data = pickle.dumps({"TYPE" : "MODEL" , "DATA" : "MODEL_WEIGHTS" , "TIME" : time.time()})
             print(sid)
-            self.sio.emit('message', ser_data , room=sid) 
+            msgToUserManager = {"TYPE" : "USER_MESSAGE" , "MESSAGE" : message , "USER_ID" : sid}
+            self.userServer_UserManagerPipe.send(msgToUserManager)
+            #self.sio.emit('message', ser_data , room=sid) 
+        elif msgType == "TEST":  
+            print("Test message Received : " , message["DATA"])
         else:
             print("Received Normal Message !!!")
             jsMsg = {"TYPE" : "RESPONSE" , "DATA" : "RECEIVED" , "TIME" : time.time()}
@@ -302,6 +305,7 @@ class webSocketServer:
     def message_in_batches(self):
         @self.sio.on('message_in_batches')
         def my_message_in_batches(sid, data):
+            #print("message Received !!!")
             self.user_byte_stream_mapping[sid].extend(data)
 
             if(b'<EOF>' in self.user_byte_stream_mapping[sid]):
@@ -309,9 +313,9 @@ class webSocketServer:
                 print("Lenght of Byte Array : " , len(self.user_byte_stream_mapping[sid]))
                 unpickledData = self.user_byte_stream_mapping[sid][:index]
                 message = pickle.loads(unpickledData)
-                print("Message Received in Batches : " , message)
+                # print("Message Received in Batches : " , message)
                 self.user_byte_stream_mapping[sid] = self.user_byte_stream_mapping[sid][index+5:]
-                print(self.user_byte_stream_mapping[sid])
+                #print(self.user_byte_stream_mapping[sid])
                 self.socketLock.acquire()
                 self.sio.emit('response', pickle.dumps({"TYPE" : "RESPONSE" , "DATA" : "RECEIVED" , "TIME" : time.time()}), room=sid)
                 self.socketLock.release()
@@ -322,7 +326,7 @@ class webSocketServer:
         @self.sio.on('message')
         def my_message(sid, data):
             message = pickle.loads(data)
-            print(message)
+            #print(message)
             self.socketLock.acquire()
             self.sio.emit('response', pickle.dumps({"TYPE" : "RESPONSE" , "DATA" : "RECEIVED" , "TIME" : time.time()}), room=sid)
             self.socketLock.release()
@@ -349,8 +353,8 @@ class sessionSupervisorInteraction():
         self.socketLock.acquire()
         print("Socket Has Been Acquired !!!")
         self.sio.emit('message', newData, room=userId)
-        print("Message Send , Socket Released !!!")
         self.socketLock.release()
+        print("Message Send , Socket Released !!!")
 
     def listenToUserManager(self):
         print("Started Listening to the User Manager Messages !!!")

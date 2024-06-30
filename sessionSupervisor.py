@@ -60,7 +60,7 @@ class sessionSupervisor():
         while True:
             if self.userManager.poll():
                 message = self.userManager.recv()
-                print("User Said : " , message)
+                #print("User Said : " , message)
                 print(message["USER_ID"])
 
                 relevantResponse = self.parserUserRequest(message)
@@ -102,7 +102,7 @@ class sessionSupervisor():
         #print("After Finding Aggregated Gradients !! , GradList = " , gradList)
         return avgModel
 
-
+    
     def aggregateGrads(self , w1 , w2):
         length = len(w1)
         updated_params = []
@@ -140,7 +140,7 @@ class sessionSupervisor():
 
         self.gradList = [None for users in self.userList]
 
-        for epoch_number in range(self.epochs):
+        for epoch_number in range(self.epochs - 1):
             epoch_start_time = time.time()
             finalGrads = self.getAvgGrads()
             print("Aggregation of the Model Grads Completed !!")

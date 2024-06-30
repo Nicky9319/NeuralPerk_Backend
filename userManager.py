@@ -92,7 +92,7 @@ class UserManager:
             if self.userToCustomerEmailMapping[userId] in self.supervisorToPipeMapping.keys():
                 supervisor = self.userToCustomerEmailMapping[userId]
                 supervisorPipe = self.supervisorToPipeMapping[supervisor]
-                supervisorPipe.send({"USER_ID" : userId , "DATA" : userMessage})
+                supervisorPipe.send({"USER_ID" : userId , "MESSAGE" : userMessage})
         elif message == "NEW_USER":
             print("New User Detected !!!")
             self.users.append(serverRequest['USER_ID'])
@@ -108,7 +108,7 @@ class UserManager:
             #print(serverCommunicationPipe)
             if userServerPipe.poll():
                 serverRequest = userServerPipe.recv()
-                print("Server Request : " , serverRequest)
+                #print("Server Request : " , serverRequest)
                 await self.handleUserServerRequests(userServerPipe , serverRequest)
             await asyncio.sleep(1)
 
