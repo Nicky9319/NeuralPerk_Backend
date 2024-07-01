@@ -59,7 +59,6 @@ model = Model(inputs, output)
 model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
 
 tf_man.InformationTransfer(model = model , epochs = 10)
-tf_man.AllConfigs()
 tf_man.initiateSessionRequest()
 
 

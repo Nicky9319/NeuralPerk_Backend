@@ -280,6 +280,11 @@ class webSocketServer:
             print("Time Taken to Send Model : " , t1-t2)
             #ser_data = pickle.dumps({"TYPE" : "MODEL" , "DATA" : "MODEL_WEIGHTS" , "TIME" : time.time()})
             print(sid)
+
+
+            # f = open("user_server_params.txt" , "w")
+            # f.write(str(message["DATA"]))
+
             msgToUserManager = {"TYPE" : "USER_MESSAGE" , "MESSAGE" : message , "USER_ID" : sid}
             self.userServer_UserManagerPipe.send(msgToUserManager)
             #self.sio.emit('message', ser_data , room=sid) 
@@ -381,7 +386,7 @@ class UserServer():
         # self.socketio = socketio
 
     def startServer(self, userServer_UserManagerPipe = None):
-        sio = socketio.Server(ping_timeout=60, ping_interval=25 , max_http_buffer_size=1024*1024*100)
+        sio = socketio.Server(ping_timeout=60, ping_interval=25 , max_http_buffer_size=1024*1024*150)
         app = socketio.WSGIApp(sio) 
         socketLock = threading.Lock()
 
