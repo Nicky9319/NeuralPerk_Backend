@@ -3,6 +3,8 @@ import requests
 import multiprocessing
 import time
 
+import pickle
+
 from flask import Flask, jsonify , request
 
 from customerAgent import customerAgent
@@ -37,7 +39,15 @@ class WebHookHandler:
     def createSession(self):
         if request.method == 'POST':
             # data = json.dumps(request.get_json())
-            data = request.get_json()
+            content_type = request.headers['Content-Type']
+            
+            data = None
+            if(content_type == 'application/json'):
+                data = request.get_json()
+            elif(content_type == 'application/bytes'):
+                data=request.get_data()
+                data = pickle.loads(data)
+
             jsMsg = json.dumps({"EMAIL" : data['EMAIL'] , "PASSWORD" : data['PASSWORD'] , "TYPE" : data['TYPE']})
 
             global ipAddress

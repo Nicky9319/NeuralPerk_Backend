@@ -62,6 +62,7 @@ tf_man.InformationTransfer(model = model , epochs = 10)
 tf_man.initiateSessionRequest()
 
 
+
 response = requests.post(f"http://127.0.0.1:5500/initializeSession" , json = {"EMAIL" : "paarthsaxena2005@gmail.com"})
 print(response.text)
 

@@ -31,9 +31,8 @@ class sessionSupervisor():
         mainMessage = message["MESSAGE"]
         messageType = mainMessage["TYPE"]   
         if(messageType == "MODEL_GRADS"):
-            print(mainMessage["DATA"][-2][0])
             curTime = time.time()
-            print(len(mainMessage["DATA"]))
+            #print(len(mainMessage["DATA"]))
             sendTime = float(mainMessage["TIME"])
             print("Sending Time : " , sendTime)
             print("Receiving Time : " , curTime)
@@ -122,26 +121,30 @@ class sessionSupervisor():
 
 
     def handle_model_training(self , modelData):
+        if "MODEL_WEIGHTS" in modelData.keys():
+            # print("Model Weights Have Been Successfully Received !!!")
+            self.model.set_weights(modelData["MODEL_WEIGHTS"])
+
         print("Started the process of MODEL Training !!")
         setupMessage = {"TYPE" : "MODEL_SETUP" , "DATA" : modelData , "TOTAL_USERS" : len(self.userList) , "TIME" : time.time() , "CUSTOMER" : self.customerEmail , "EPOCHS" : self.epochs}
         self.broadcast(setupMessage)
 
         print(type(self.model.get_weights()))
-        #self.model = keras.models.model_from_json(json.dumps(modelData["MODEL_JSON"]))
-        #self.model.load_weights("C:/Users/paart/OneDrive/Documents/Paarth Workshop/Start-Up/Deep Logic/Network Prototyping/Server Client Methods/SocketIO Server/model.h5")
+
+        self.model.set_weights(modelData["MODEL_WEIGHTS"])
+        # print(self.model.get_weights()[0][0][0][0])
+
         trainingMessage = {"TYPE" : "TRAIN" , "DATA" : self.model.get_weights() , "TIME" : time.time()}
         self.broadcast(trainingMessage , inBytes=True)
 
         self.gradList = [None for users in self.userList]
 
-        print(self.model.get_weights()[-2][0])
-
         for epoch_number in range(self.epochs - 1):
             epoch_start_time = time.time()
             finalGrads = self.getAvgGrads()
-            print(finalGrads.get_weights()[-2][0])
-            #self.gradReadingEvent.wait()
-            print(self.model.get_weights()[-2][0])
+            # print(finalGrads.get_weights()[-2][0])
+            # self.gradReadingEvent.wait()
+            # print(self.model.get_weights()[-2][0])
             print("Aggregation of the Model Grads Completed !!")
             self.applyGrad(finalGrads)
             epoch_end_time = time.time()
