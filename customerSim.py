@@ -62,7 +62,9 @@ tf_man.InformationTransfer(model = model , epochs = 10)
 tf_man.initiateSessionRequest()
 
 
+localHost = 'http://127.0.0.1:5500'
+ubuntuHost = 'http://192.168.0.125:5500'
 
-response = requests.post(f"http://127.0.0.1:5500/initializeSession" , json = {"EMAIL" : "paarthsaxena2005@gmail.com"})
+response = requests.post(f"{localHost}/initializeSession" , json = {"EMAIL" : "paarthsaxena2005@gmail.com"})
 print(response.text)
 

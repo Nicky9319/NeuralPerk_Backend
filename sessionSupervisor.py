@@ -6,6 +6,7 @@ import pickle
 import requests
 import json
 
+import copy
 
 class sessionSupervisor():
     def __init__(self , customerAgentPipe , userManagerPipe) -> None:
@@ -122,11 +123,13 @@ class sessionSupervisor():
 
     def handle_model_training(self , modelData):
         if "MODEL_WEIGHTS" in modelData.keys():
-            # print("Model Weights Have Been Successfully Received !!!")
+            print("Model Weights Have Been Successfully Received !!!")
             self.model.set_weights(modelData["MODEL_WEIGHTS"])
 
         print("Started the process of MODEL Training !!")
-        setupMessage = {"TYPE" : "MODEL_SETUP" , "DATA" : modelData , "TOTAL_USERS" : len(self.userList) , "TIME" : time.time() , "CUSTOMER" : self.customerEmail , "EPOCHS" : self.epochs}
+        modelDataUpdated = copy.deepcopy(modelData)
+        modelDataUpdated["MODEL_WEIGHTS"] = None
+        setupMessage = {"TYPE" : "MODEL_SETUP" , "DATA" : modelDataUpdated , "TOTAL_USERS" : len(self.userList) , "TIME" : time.time() , "CUSTOMER" : self.customerEmail , "EPOCHS" : self.epochs}
         self.broadcast(setupMessage)
 
         print(type(self.model.get_weights()))
@@ -134,6 +137,7 @@ class sessionSupervisor():
         self.model.set_weights(modelData["MODEL_WEIGHTS"])
         # print(self.model.get_weights()[0][0][0][0])
 
+        time.sleep(10)
         trainingMessage = {"TYPE" : "TRAIN" , "DATA" : self.model.get_weights() , "TIME" : time.time()}
         self.broadcast(trainingMessage , inBytes=True)
 
@@ -216,6 +220,7 @@ class sessionSupervisor():
         # End of Session Manager
 
         userManagerThread.join()
+
         
 
 
