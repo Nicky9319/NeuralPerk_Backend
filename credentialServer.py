@@ -156,9 +156,12 @@ def get_customer_data_callback():
             modelPath = "CustomerData/" + data['EMAIL'] + "/" + modelName + ".h5"
             if os.path.exists(modelPath):
                 model = tf.keras.models.load_model(modelPath)
-                # modelConfig = model.get_config()
-                # modelWeights = model.get_weights()
-                return Response(pickle.dumps({'message': "Model Found" , "MODEL_CONFIG" : None , "MODEL_WEIGHTS" : None})  , mimetype='application/octet-stream' , status=200) 
+                modelConfig = model.to_json()
+                modelWeights = model.get_weights()
+                print(len(pickle.dumps({'message': "Model Found" , "MODEL_CONFIG" : modelConfig , "MODEL_WEIGHTS" : modelWeights})))
+                print(type(modelConfig))
+                print(type(modelWeights))
+                return Response(pickle.dumps({'message': "Model Found" , "MODEL_CONFIG" : modelConfig , "MODEL_WEIGHTS" : modelWeights})  , mimetype='application/octet-stream' , status=200) 
             else:
                 return jsonify({'message': "Model Not Found"}), 404
     else:
@@ -169,6 +172,7 @@ def get_customer_data_callback():
 
 if __name__ == '__main__':
     ipAddress = '127.0.0.1'
+    print(tf.__version__)
     app.run(host=ipAddress, port=5555 , debug=False)
  
 
