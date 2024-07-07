@@ -1,6 +1,9 @@
-from flask import Flask, jsonify , request
+from flask import Flask, jsonify , request, Response
 import json
 import sqlite3
+import os
+import pickle
+import tensorflow as tf
 
 app = Flask(__name__)
 
@@ -19,6 +22,8 @@ def handle_post_request(data):
         credsVal = (data['EMAIL'], data['PASSWORD'])
         cursor.execute("insert into customers values (?, ?)", credsVal)
         localConnection.commit()
+        customerDataPath = "CustomerData/" + data['EMAIL']
+        os.mkdir(customerDataPath)
         return jsonify({'message': 'Customer Credentials Added'}), 200
     elif(data['TYPE'] == "USERS"):  
         credsVal = (data['EMAIL'],)
@@ -37,12 +42,12 @@ def handle_get_request(data):
     cursor = localConnection.cursor()
     if(data['TYPE'] == "CUSTOMERS"):
         credsVal = (data['EMAIL'], data['PASSWORD'])
-        cursor.execute("select * from customers")
+        cursor.execute("select email , password from customers")
         queryResult = cursor.fetchall()
         if credsVal in queryResult:
-            return jsonify({'message': 'Valid Customer Credentials'}), 200
+            return jsonify({'message': 'VERIFIED'}), 200
         else:
-            return jsonify({'message': 'Invalid Customer Credentials'}), 404
+            return jsonify({'message': 'Invalid Customer Credentials'}), 200
     elif(data['TYPE'] == "USERS"):
         print("Querying the User Table !!!")
         credsVal = (data['EMAIL'], data['PASSWORD'])
@@ -104,6 +109,63 @@ def check_node_callback():
 @app.route('/serverRunning' , methods=['GET'])
 def server_running_callback():
     return jsonify({'message': 'Running'}), 200
+
+
+
+@app.route('/updateCustomerData' , methods=['PUT'])
+def update_customer_data_callback():
+    if request.method == 'PUT':
+        data = None
+        if request.content_type != 'application/octet-stream':
+            data = pickle.loads(request.get_data())
+        elif request.content_type == 'application/json':
+            data = request.get_json()
+        
+        if data["TYPE"] == "ADD_NEW_MODEL":
+            customerDataPath = "CustomerData/" + data['EMAIL']  
+            modelConfig = data['MODEL_CONFIG']
+            model = keras.models.load_model(modelConfig)
+            model.set_weights(data['MODEL_WEIGHTS'])
+            model.save(customerDataPath + "/" + data["MODEL_NAME"] + ".h5")
+
+
+
+        if os.path.exists(customerDataPath):
+            with open(customerDataPath + "/" + data['FILE_NAME'] , 'w') as file:
+                file.write(data['FILE_DATA'])
+            return jsonify({'message': 'Data Updated'}), 200
+        else:
+            return jsonify({'message': 'Customer Data Not Found'}), 404
+    else:
+        print("Method not allowed !!!")
+        return jsonify({'message': 'Method not allowed'}), 405
+
+
+@app.route('/getCustomerData' , methods=['GET'])
+def get_customer_data_callback():
+    if request.method == 'GET':
+        message = request.args.get('message')
+        data = json.loads(message)
+        msgType = data["TYPE"]
+        if msgType == "GET_TRAINED_MODELS":
+            trainedModelList = os.listdir("CustomerData/" + data['EMAIL'])
+            modelNameList = [model.split(".")[0] for model in trainedModelList]
+            return jsonify({'message': "trained Model List" , "DATA" : modelNameList}), 200
+        elif msgType == "GET_MODEL":
+            modelName = data['MODEL_NAME']
+            modelPath = "CustomerData/" + data['EMAIL'] + "/" + modelName + ".h5"
+            if os.path.exists(modelPath):
+                model = tf.keras.models.load_model(modelPath)
+                # modelConfig = model.get_config()
+                # modelWeights = model.get_weights()
+                return Response(pickle.dumps({'message': "Model Found" , "MODEL_CONFIG" : None , "MODEL_WEIGHTS" : None})  , mimetype='application/octet-stream' , status=200) 
+            else:
+                return jsonify({'message': "Model Not Found"}), 404
+    else:
+        print("Method not allowed !!!")
+        return jsonify({'message': 'Method not allowed'}), 405
+
+
 
 if __name__ == '__main__':
     ipAddress = '127.0.0.1'

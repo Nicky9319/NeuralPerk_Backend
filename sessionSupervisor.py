@@ -19,11 +19,21 @@ class sessionSupervisor():
         self.gradList_Lock = None
         
         self.gradList = []
+        self.accuracyList = []
+        self.lossList = []
         self.training_epoch_number = 0
         self.epochs = None
         self.socketio = None
-        print("Pipes for Supervisor")
-        print()
+
+        self.finalModelWeights = None
+
+        self.highestAccuracy = 0.0
+        self.currentAccuracy = 0.0
+
+        self.lowestLoss = 100.0
+        self.currentLoss = 100.0
+
+        self.currentDateTime = None
 
 
 
@@ -43,6 +53,9 @@ class sessionSupervisor():
             
             index = self.userList.index(userId)
             self.gradList[index] = mainMessage["DATA"]
+            self.accuracyList[index] = mainMessage["ACCURACY"]
+            self.lossList[index] = mainMessage["LOSS"]
+
             all_grads_received = True
             for val in self.gradList:
                 if val == None:
@@ -81,6 +94,8 @@ class sessionSupervisor():
     def getAvgGrads(self):
         self.gradReadingEvent.wait()
         #print("All Grads Received !!")
+        avgAccuracy = sum(self.accuracyList) / len(self.accuracyList)
+        avgLoss = sum(self.lossList) / len(self.lossList)
         avgModel = keras.models.model_from_json(self.model.to_json())
         layerLength = len(avgModel.layers)
         gradModel = keras.models.model_from_json(self.model.to_json())
@@ -92,6 +107,9 @@ class sessionSupervisor():
         self.gradReadingEvent.clear()
         self.gradList = [None for indices in range(len(self.userList))]
         #print("After Finding Aggregated Gradients !! , GradList = " , gradList)
+
+        self.currentAccuracy = avgAccuracy
+        self.currentLoss = avgLoss
         return avgModel
 
 
@@ -143,23 +161,33 @@ class sessionSupervisor():
 
         self.gradList = [None for users in self.userList]
 
+        self.finalModelWeights = self.model.get_weights()
+
         for epoch_number in range(self.epochs - 1):
             epoch_start_time = time.time()
             finalGrads = self.getAvgGrads()
-            # print(finalGrads.get_weights()[-2][0])
-            # self.gradReadingEvent.wait()
-            # print(self.model.get_weights()[-2][0])
+
+            if self.currentAccuracy > self.highestAccuracy:
+                self.highestAccuracy = self.currentAccuracy
+                self.finalModelWeights = self.model.get_weights()
+                self.lowestLoss = self.currentLoss
+                print("Highest Accuracy Updated !!!") 
+                print("Lowest Loss Updated !!!")
+
             print("Aggregation of the Model Grads Completed !!")
             self.applyGrad(finalGrads)
             epoch_end_time = time.time()
             print(f"Total Time For Training Epoch Number {epoch_number + 1} : " , epoch_end_time - epoch_start_time)
-            # st = f"Model_{epoch_number}"
-            # model.save_weights(st)
+
             message = {"TYPE" : "UPDATED_MODEL" , "DATA" : self.model.get_weights() , "TIME" : time.time()}
             print("Message has been Finalized !!")
-            #self.gradReadingEvent.clear()
             self.broadcast(message=message , inBytes=True)
             
+
+        customerModelUpdateData = {"TYPE" : "ADD_NEW_MODEL" , "EMAIL" : self.customerEmail , "MODEL_WEIGHTS" : self.finalModelWeights , "MODEL_CONFIG" : self.model.to_json() , "MODEL_NAME" : self.currentDateTime}
+        customerModelUpdateData = pickle.dumps(customerModelUpdateData)
+        response = requests.put("http://127.0.0.1:5555/updateCustomerModel" , data = customerModelUpdateData , headers={"Content-Type" : "application/octet-stream"})
+        
         print("Model Training Finished !!!")
 
 
@@ -168,12 +196,14 @@ class sessionSupervisor():
         self.gradReadingEvent = threading.Event()
         self.gradList_Lock = threading.Lock()
 
-        print("Running and Managing Session !!!")
-        self.customerEmail = data["EMAIL"]
 
+        print("Running and Managing Session !!!")
+
+        self.customerEmail = data["EMAIL"]
         modelInfo = data["DATA"]
 
-        print(self.socketio)
+        self.currentDateTime = data["DATETIME"]
+        print("Current Date Time : " , self.currentDateTime)
 
         userManagerThread = threading.Thread(target=self.listenToUserMessages)
         userManagerThread.start()

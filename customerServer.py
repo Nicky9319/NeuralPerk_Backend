@@ -73,7 +73,7 @@ class WebHookHandler:
         self.mainServer_UserManagerPipe.send({"TYPE" : "NEW_SESSION" , "EMAIL" : customerEmail , "SUPERVISOR_PIPE" : sessionSupervisorPipe})
         currentSessionCustomerAgent = customerAgent(userManagerPipe)
         customerAgentsList[customerEmail] = currentSessionCustomerAgent
-        messageForCustomerAgent = {"EMAIL" : customerEmail , "DATA" : session_creation_requests[customerEmail]}
+        messageForCustomerAgent = {"EMAIL" : customerEmail , "DATA" : session_creation_requests[customerEmail] , "DATETIME" : time.strftime("%Y-%m-%d : %H:%M:%S")}
         currentSessionCustomerAgent.initializeSession(messageForCustomerAgent)
         return True
 
