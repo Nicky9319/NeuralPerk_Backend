@@ -188,6 +188,7 @@ class sessionSupervisor():
         customerModelUpdateData = pickle.dumps(customerModelUpdateData)
         response = requests.put("http://127.0.0.1:5555/updateCustomerModel" , data = customerModelUpdateData , headers={"Content-Type" : "application/octet-stream"})
         
+        self.userManager.send({"TYPE" : "USER_RELEASED" , "USERS" :  self.userList})
         print("Model Training Finished !!!")
 
 

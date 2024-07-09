@@ -58,17 +58,17 @@ model = Model(inputs, output)
 
 model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
 
-model.load_model("test.h5")
+# model.load_model("test.h5")
 
 # model.save("test.h5")
 
-# tf_man.InformationTransfer(model = model , epochs = 10)
-# tf_man.initiateSessionRequest()
+tf_man.InformationTransfer(model = model , epochs = 10)
+tf_man.initiateSessionRequest()
 
 
-# localHost = 'http://127.0.0.1:5500'
-# ubuntuHost = 'http://192.168.0.125:5500'
+localHost = 'http://127.0.0.1:5500'
+ubuntuHost = 'http://192.168.0.125:5500'
 
-# response = requests.post(f"{ubuntuHost}/initializeSession" , json = {"EMAIL" : "paarthsaxena2005@gmail.com"})
-# print(response.text)
+response = requests.post(f"{localHost}/initializeSession" , json = {"EMAIL" : "paarthsaxena2005@gmail.com"})
+print(response.text)
 

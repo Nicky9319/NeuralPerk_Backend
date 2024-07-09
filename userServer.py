@@ -268,6 +268,7 @@ class webSocketServer:
         def disconnect(sid):
             del self.clients[sid]
             print(f'Client {sid} disconnected')
+            self.userServer_UserManagerPipe.send({"TYPE" : "REMOVE_USER" , "USER_ID" : sid})
     
 
     

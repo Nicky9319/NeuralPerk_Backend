@@ -28,12 +28,15 @@ class WebHookHandler:
     def handle_session_creation_request(self , data):
         global session_creation_requests
         global session_status
-        session_creation_requests[data['EMAIL']] = data["DATA"]
-        session_status[data['EMAIL']] = "PENDING"
-        # print()
-        # print(session_creation_requests.keys())
-        # print()
-        return jsonify({'message': 'Request Submitted'}), 200
+        if data["EMAIL"] not in session_status.keys():
+            session_creation_requests[data['EMAIL']] = data["DATA"]
+            session_status[data['EMAIL']] = "PENDING"
+            # print()
+            # print(session_creation_requests.keys())
+            # print()
+            return jsonify({'message': 'Request Submitted'}), 200
+        else:
+            return jsonify({'message': 'Session Already Running'}), 403
 
     # @app.route('/requestSessionCreation', methods=['GET'])
     def createSession(self):
