@@ -2,7 +2,7 @@ import subprocess
 import time
 
 def runScript(location):
-    process = subprocess.Popen(['start', 'cmd', '/k', 'python', location], shell=True)
+    process = subprocess.Popen(['gnome-terminal', "--",  'python', location], shell=False)
 
 mainServer = "Server.py"
 credentialServer = "credentialServer.py"

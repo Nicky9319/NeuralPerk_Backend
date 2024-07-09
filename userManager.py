@@ -32,7 +32,12 @@ class UserManager:
         elif message == "SEND_MESSAGE_TO_USER":
             print("Sending Message to User Server For Further Execution of The Request SEND_MESSAGE_TO_USER!!!")
             self.userServer_Pipe.send(supervisorRequest)
-            pass
+        elif message == "USER_RELEASED":
+            print("User Released !!!")
+            userIds = supervisorRequest['USERS']
+            print("List of Users Released : " , userIds)
+            self.users.extend(userIds)
+            print(self.users)
 
 
     async def listenToSupervisorMessages(self , supervisorPipe , supervisorIdentityEmail):
@@ -96,6 +101,11 @@ class UserManager:
         elif message == "NEW_USER":
             print("New User Detected !!!")
             self.users.append(serverRequest['USER_ID'])
+            print(self.users)
+        elif message == "REMOVE_USER":
+            print("User Removed !!!")
+            userId = serverRequest['USER_ID']
+            self.users.remove(userId)
             print(self.users)
         else:
             pass

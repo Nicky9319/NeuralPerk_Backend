@@ -1,28 +1,54 @@
 import tensorflow as tf
+from keras.layers import Conv2D, BatchNormalization, ReLU, Add, GlobalAveragePooling2D, Dense, Input , MaxPooling2D, Flatten
+from keras.models import Model
+import json
 
-# Define the CNN model
-model = tf.keras.models.Sequential([
-    tf.keras.layers.Conv2D(32, (3, 3), activation='relu', input_shape=(28, 28, 1)),
-    tf.keras.layers.MaxPooling2D((2, 2)),
-    tf.keras.layers.Flatten(),
-    tf.keras.layers.Dense(64, activation='relu'),
-    tf.keras.layers.Dense(10, activation='softmax')
+from keras.preprocessing.image import ImageDataGenerator
+
+
+
+from keras.preprocessing.image import ImageDataGenerator
+from keras.applications import ResNet50V2
+from keras import Model
+from keras import Input
+from keras.layers import GlobalAveragePooling2D, BatchNormalization, Dropout, Dense
+from keras.callbacks import EarlyStopping, ModelCheckpoint, ReduceLROnPlateau
+
+NUM_CLASSES = 38
+IMAGE_SIZE = 256
+
+
+
+
+model = tf.keras.Sequential([
+    Conv2D(32, (3, 3), activation='relu', input_shape=(IMAGE_SIZE, IMAGE_SIZE, 3)),
+    MaxPooling2D((2, 2)),
+    Conv2D(64, (3, 3), activation='relu'),
+    MaxPooling2D((2, 2)),
+    Conv2D(128, (3, 3), activation='relu'),
+    MaxPooling2D((2, 2)),
+    Flatten(),
+    Dense(128, activation='relu'),
+    Dense(NUM_CLASSES, activation='softmax')
 ])
 
-# Compile the model
 
-optimizer_config = {'class_name': 'Adam', 'config': {'name': 'Adam', 'learning_rate': 0.001, 'decay': 0.0, 'beta_1': 0.3, 'beta_2': 0.999, 'epsilon': 1e-07, 'amsgrad': False}}
-
-# optimizer = tf.keras.optimizers.get(optimizer_config['name'])(**optimizer_config)
-model.compile(optimizer="ADAM", loss='sparse_categorical_crossentropy', metrics=['accuracy'])
-
-print()
-print(model.optimizer.get_config())
-
-# val = tf.keras.optimizers.serialize(model.optimizer)
-model.optimizer = tf.keras.optimizers.deserialize(optimizer_config)
-
-print(model.optimizer.get_config())
+# base_model = ResNet50V2(input_shape=(IMAGE_SIZE, IMAGE_SIZE, 3), include_top=False)
+# base_model.trainable = False
 
 
-# {'class_name': 'Adam', 'config': {'name': 'Adam', 'learning_rate': 0.001, 'decay': 0.0, 'beta_1': 0.3, 'beta_2': 0.999, 'epsilon': 1e-07, 'amsgrad': False}}
+# inputs = Input(shape=(IMAGE_SIZE, IMAGE_SIZE, 3))
+# base = base_model(inputs)
+# base = GlobalAveragePooling2D()(base)
+# base = Dropout(0.2)(base)
+# base = BatchNormalization()(base)
+# base = Dropout(0.5)(base)
+# output = Dense(NUM_CLASSES, activation="softmax")(base)
+
+# model = Model(inputs, output)
+
+model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+
+
+model.save("CustomerData/paarthsaxena2005@gmail.com/model.h5")
+# newModel = tf.keras.models.load_model("model.h5")
