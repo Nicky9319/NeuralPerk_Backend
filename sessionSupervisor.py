@@ -160,10 +160,12 @@ class sessionSupervisor():
         self.broadcast(trainingMessage , inBytes=True)
 
         self.gradList = [None for users in self.userList]
+        self.accuracyList = [0.0 for users in self.userList]
+        self.lossList = [100.0 for users in self.userList]
 
         self.finalModelWeights = self.model.get_weights()
 
-        for epoch_number in range(self.epochs - 1):
+        for epoch_number in range(self.epochs):
             epoch_start_time = time.time()
             finalGrads = self.getAvgGrads()
 
@@ -186,8 +188,11 @@ class sessionSupervisor():
 
         customerModelUpdateData = {"TYPE" : "ADD_NEW_MODEL" , "EMAIL" : self.customerEmail , "MODEL_WEIGHTS" : self.finalModelWeights , "MODEL_CONFIG" : self.model.to_json() , "MODEL_NAME" : self.currentDateTime}
         customerModelUpdateData = pickle.dumps(customerModelUpdateData)
-        response = requests.put("http://127.0.0.1:5555/updateCustomerModel" , data = customerModelUpdateData , headers={"Content-Type" : "application/octet-stream"})
-        
+        response = requests.put("http://127.0.0.1:5555/updateCustomerData" , data = customerModelUpdateData , headers={"Content-Type" : "application/octet-stream"})
+
+        print("Credential Server Responded with the Following Status Code : " , response.status_code)
+        print("It Also Mentioned the Following Message : " , response.text)
+
         self.userManager.send({"TYPE" : "USER_RELEASED" , "USERS" :  self.userList})
         print("Model Training Finished !!!")
 
@@ -517,4 +522,3 @@ class sessionSupervisor():
 
 
         
-

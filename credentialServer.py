@@ -4,6 +4,8 @@ import sqlite3
 import os
 import pickle
 import tensorflow as tf
+import keras
+import subprocess
 
 app = Flask(__name__)
 
@@ -116,23 +118,24 @@ def server_running_callback():
 def update_customer_data_callback():
     if request.method == 'PUT':
         data = None
-        if request.content_type != 'application/octet-stream':
+        if request.content_type == 'application/octet-stream':
             data = pickle.loads(request.get_data())
         elif request.content_type == 'application/json':
             data = request.get_json()
         
         if data["TYPE"] == "ADD_NEW_MODEL":
+            print("Saving New Model to the Customer Data Directory !!!")
             customerDataPath = "CustomerData/" + data['EMAIL']  
             modelConfig = data['MODEL_CONFIG']
-            model = keras.models.load_model(modelConfig)
+            model = keras.models.model_from_json(modelConfig)
             model.set_weights(data['MODEL_WEIGHTS'])
             model.save(customerDataPath + "/" + data["MODEL_NAME"] + ".h5")
 
 
 
         if os.path.exists(customerDataPath):
-            with open(customerDataPath + "/" + data['FILE_NAME'] , 'w') as file:
-                file.write(data['FILE_DATA'])
+            # with open(customerDataPath + "/" + data['FILE_NAME'] , 'w') as file:
+            #     file.write(data['FILE_DATA'])
             return jsonify({'message': 'Data Updated'}), 200
         else:
             return jsonify({'message': 'Customer Data Not Found'}), 404
@@ -170,10 +173,17 @@ def get_customer_data_callback():
 
 
 
+
 if __name__ == '__main__':
-    ipAddress = '127.0.0.1'
-    print(tf.__version__)
+    # ipAddressAndPort = '0.0.0.0:5555'
+    # print(tf.__version__)
+    # command = [
+    #     'gunicorn',
+    #     '--bind', ipAddressAndPort,
+    #     '--workers', str(2),
+    #     'credentialServer:app',  # Replace 'app' with your Flask application module name
+    # ]
+    # subprocess.run(command)
+    ipAddress = "0.0.0.0"
     app.run(host=ipAddress, port=5555 , debug=False)
  
-
-

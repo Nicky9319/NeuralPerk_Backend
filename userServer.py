@@ -269,7 +269,6 @@ class webSocketServer:
             del self.clients[sid]
             print(f'Client {sid} disconnected')
             self.userServer_UserManagerPipe.send({"TYPE" : "REMOVE_USER" , "USER_ID" : sid})
-    
 
     
     def parserMessage(self , sid , message):
@@ -404,12 +403,9 @@ class UserServer():
         socketServer.message()
 
         global ipAddress
-        ipAddress = "127.0.0.1"
+        ipAddress = "0.0.0.0"
         # listenToUserManagerThread = threading.Thread(target=sessionSupervisor.listenToUserManager)
         # listenToUserManagerThread.start()
 
         eventlet.wsgi.server(eventlet.listen((ipAddress, 6000)), app)
         # listenToUserManagerThread.join()
-
-
-

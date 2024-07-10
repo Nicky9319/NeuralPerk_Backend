@@ -4,10 +4,12 @@ import multiprocessing
 import time
 
 import pickle
+import subprocess
 
 from flask import Flask, jsonify , request
 
 from customerAgent import customerAgent
+
 
 
 
@@ -26,8 +28,6 @@ class WebHookHandler:
         self.app.add_url_rule('/updateSessionStatus', 'updateSessionStatus', self.update_session_status_callback, methods=['PUT'])
 
     def handle_session_creation_request(self , data):
-        global session_creation_requests
-        global session_status
         if data["EMAIL"] not in session_status.keys():
             session_creation_requests[data['EMAIL']] = data["DATA"]
             session_status[data['EMAIL']] = "PENDING"
@@ -40,7 +40,9 @@ class WebHookHandler:
 
     # @app.route('/requestSessionCreation', methods=['GET'])
     def createSession(self):
+        f = open("customerServerLog.txt" , "a")
         if request.method == 'POST':
+            f.write("Session Creation Called !!!")
             # data = json.dumps(request.get_json())
             content_type = request.headers['Content-Type']
             
@@ -82,7 +84,9 @@ class WebHookHandler:
 
     # @app.route('/initializeSession', methods=['POST'])
     def initialize_session_callback(self):
+        # f = open("customerServerLog.txt" , "w")
         print("Initiate Session Called !!!")
+        # f.write("Initiate Session Called !!!")
         if request.method == 'POST':
             global session_creation_requests
             global session_status
@@ -94,10 +98,16 @@ class WebHookHandler:
             if email in session_creation_requests.keys():
                 if(self.initialize_customer_session(email) == True):
                     print(len(customerAgentsList))
+                    # f.write(len(customerAgentsList))
+
                     del session_creation_requests[email]
                     session_status[email] = "RUNNING"
                     print(session_status[email])
+                    # f.write(session_status[email])
+
                     print("Session Succefully Created and Status Updated !!!")
+                    # f.write("Session Succefully Created and Status Updated !!!")
+
                     return jsonify({'message': 'Created'}), 200
                 else:
                     print("Session Creation Failed")
@@ -122,6 +132,7 @@ class WebHookHandler:
 
     # @app.route('/serverRunning' , methods=['GET'])
     def server_running_callback(self):
+        print("Server Running Called !!!")
         if request.method == 'GET':
             return jsonify({'message': 'Running'}), 200
         else:
@@ -175,7 +186,7 @@ class CustomerServer():
         self.mainServer_UserManagerPipe = mainServer_UserManagerPipe
 
         global ipAddress
-        ipAddress = "127.0.0.1"
+        ipAddress = "0.0.0.0"
 
         global session_creation_requests 
         global session_status
@@ -194,6 +205,19 @@ class CustomerServer():
 
         print("Customer Server Starting !!!")
         Flask.run(app, host=ipAddress, port=5500 , debug=False)
+
+        # ipAddressAndPort = '0.0.0.0:5500'
+        # command = [
+        #     'gunicorn',
+        #     '--bind', ipAddressAndPort,
+        #     '--workers', str(1),
+        #     'credentialServer:app',  # Replace 'app' with your Flask application module name
+        #     '--error-logfile' , 'customerServerLog.log',
+        #     '--log-level' , 'debug'
+        # ]
+        # subprocess.run(command)
+
+
     
     def userMessageHandler(self , sid , message):
         self.socketio.emit('response', 'Message Received', room=sid)

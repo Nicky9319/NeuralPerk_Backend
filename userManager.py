@@ -34,9 +34,10 @@ class UserManager:
             self.userServer_Pipe.send(supervisorRequest)
         elif message == "USER_RELEASED":
             print("User Released !!!")
-            userId = supervisorRequest['USER_ID']
-            self.users.append(userId)
-            # print(self.users)
+            userIds = supervisorRequest['USERS']
+            print("List of Users Released : " , userIds)
+            self.users.extend(userIds)
+            print(self.users)
 
 
     async def listenToSupervisorMessages(self , supervisorPipe , supervisorIdentityEmail):
@@ -137,6 +138,3 @@ class UserManager:
         #print(serverCommunincationPipe.recv())
         self.asyncLoop = asyncio.get_event_loop()
         asyncio.run(self.startFunctioning(customerServerPipe , userServerPipe))
-
-
-
