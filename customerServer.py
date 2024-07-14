@@ -185,6 +185,8 @@ class CustomerServer():
 
         self.mainServer_UserManagerPipe = mainServer_UserManagerPipe
 
+        print("User Manager Pipe : " , self.mainServer_UserManagerPipe)
+
         global ipAddress
         ipAddress = "0.0.0.0"
 

@@ -7,14 +7,22 @@ statusMsg = { "TYPE" : "CUSTOMERS" , "EMAIL" : "paarthsaxena2005@gmail.com"}
 statusMsg = json.dumps(statusMsg)
 
 
-# response = requests.post(f"http://127.0.0.1:5500/requestSessionCreation" , json = jsMsg)
-# print(response.text)
+ipAddress = "192.168.0.125"
 
-# response = requests.get(f"http://127.0.0.1:5500/sessionSTATUS?message={statusMsg}")
-# print(response.text)
-
-response = requests.post(f"http://127.0.0.1:5500/initializeSession" , json = {"EMAIL" : "paarthsaxena2005@gmail.com"})
+response = requests.get(f"http://{ipAddress}:5500/serverRunning")
 print(response.text)
+
+response = requests.post(f"http://{ipAddress}:5500/sessionSTATUS" , json = jsMsg)
+print(response.text)
+
+# response = requests.post(f"http://{ipAddress}:5500/requestSessionCreation" , json = jsMsg)
+# print(response.text)
+
+# response = requests.get(f"http://{ipAddress}:5500/sessionSTATUS?message={statusMsg}")
+# print(response.text)
+
+# response = requests.post(f"http://{ipAddress}:5500/initializeSession" , json = {"EMAIL" : "paarthsaxena2005@gmail.com"})
+# print(response.text)
 
 # response = requests.put(f"http://127.0.0.1:6666/handleSessionRequests" , json = {"EMAIL" : "paarthsaxena2005@gmail.com" , "DGSVBH#D" : "f,jwhrbfrwkjrw"})
 # print(response.text)
