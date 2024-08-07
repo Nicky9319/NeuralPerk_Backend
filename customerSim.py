@@ -41,20 +41,45 @@ NUM_CLASSES = 38
 IMAGE_SIZE = 256
 
 
-# base_model = ResNet50V2(input_shape=(IMAGE_SIZE, IMAGE_SIZE, 3), include_top=False)
-# base_model.trainable = False
+base_model = ResNet50V2(input_shape=(IMAGE_SIZE, IMAGE_SIZE, 3), include_top=False)
+base_model.trainable = False
 
 
-# inputs = Input(shape=(IMAGE_SIZE, IMAGE_SIZE, 3))
-# base = base_model(inputs)
-# base = GlobalAveragePooling2D()(base)
-# base = Dropout(0.2)(base)
-# base = BatchNormalization()(base)
-# base = Dropout(0.5)(base)
-# output = Dense(NUM_CLASSES, activation="softmax")(base)
+inputs = Input(shape=(IMAGE_SIZE, IMAGE_SIZE, 3))
+base = base_model(inputs)
+base = GlobalAveragePooling2D()(base)
+base = Dropout(0.2)(base)
+base = BatchNormalization()(base)
+base = Dropout(0.5)(base)
+output = Dense(NUM_CLASSES, activation="softmax")(base)
 
-# model = Model(inputs, output)
+model = Model(inputs, output)
 
+model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+
+from keras.models import Sequential
+from keras.layers import Conv2D, MaxPooling2D, Flatten, Dense
+
+
+
+# img_size = (150 , 150)
+
+# model = Sequential([
+#     Conv2D(32, (3, 3), activation='relu', input_shape=(img_size[0], img_size[1], 3)),
+#     MaxPooling2D(pool_size=(2, 2)),
+#     Conv2D(64, (3, 3), activation='relu'),
+#     MaxPooling2D(pool_size=(2, 2)),
+#     Conv2D(128, (3, 3), activation='relu'),
+#     MaxPooling2D(pool_size=(2, 2)),
+#     Flatten(),
+#     Dense(128, activation='relu'),
+#     Dense(1, activation='sigmoid')
+# ])
+
+
+# model.compile(optimizer='adam',
+#               loss='binary_crossentropy',
+#               metrics=['accuracy'])
 
 
 def getDataset():
@@ -86,20 +111,23 @@ def getDataset():
 
 
 
-model = tf_man.loadModel()
-model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+# model = tf_man.loadModel()
+# model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
 
 
-model.evaluate(getDataset())
+# model.evaluate(getDataset())
 
 
-# tf_man.InformationTransfer(model = model , epochs = 10)
-# tf_man.initiateSessionRequest()
+
+tf_man.InformationTransfer(model = model , epochs = 10)
+tf_man.initiateSessionRequest()
 
 
-# localHost = 'http://127.0.0.1:5500'
-# ubuntuHost = 'http://192.168.0.125:5500'
+localHost = 'http://127.0.0.1:5500'
+ubuntuHost = 'http://192.168.0.125:5500'
 
-# response = requests.post(f"{ubuntuHost}/initializeSession" , json = {"EMAIL" : "paarthsaxena2005@gmail.com"})
-# print(response.text)
+serverHost = 'http://64.227.139.68:5500'
+
+response = requests.post(f"{serverHost}/initializeSession" , json = {"EMAIL" : "paarthsaxena2005@gmail.com"})
+print(response.text)
 

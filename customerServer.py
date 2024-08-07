@@ -129,7 +129,6 @@ class WebHookHandler:
         else:
             return jsonify({'message': 'Method not allowed'}), 405
 
-
     # @app.route('/serverRunning' , methods=['GET'])
     def server_running_callback(self):
         print("Server Running Called !!!")
