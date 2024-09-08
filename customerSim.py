@@ -131,3 +131,8 @@ serverHost = 'http://64.227.139.68:5500'
 response = requests.post(f"{serverHost}/initializeSession" , json = {"EMAIL" : "paarthsaxena2005@gmail.com"})
 print(response.text)
 
+
+
+
+
+

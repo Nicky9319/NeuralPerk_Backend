@@ -52,9 +52,7 @@
 # model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
 
 
-
-l = [ "aba" , "a"]
-print(l)
-
-l.remove("aba")
-print(l)
+dict = {1 : 'a', 2 : 'b', 3 : 'c'}
+print(dict)
+del dict[1]
+print(dict)

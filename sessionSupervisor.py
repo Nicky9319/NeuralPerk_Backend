@@ -5,6 +5,9 @@ import keras
 import pickle
 import requests
 import json
+import subprocess
+import os
+import datetime
 
 import copy
 
@@ -36,6 +39,8 @@ class sessionSupervisor():
         self.currentDateTime = None
 
 
+
+# Basic Utility Section !!! ---------------------------------------------------------------------------------------------------
 
     def parserUserRequest(self , message):
         userId = message["USER_ID"]
@@ -69,17 +74,34 @@ class sessionSupervisor():
             print("Received Message : " , mainMessage["DATA"])
         pass
 
+    def parserUserManagerRequest(self , message):
+            # print("Parsing User Manager Request !!!")
+            msgType = message["TYPE"]
+            if(msgType == "DISCONNECT"):
+                print("User Disconnected !!! , Message By Session Supervisor")
+                self.handleUserDisconnect(message["USER_ID"])
+            else:
+                pass
+
     def listenToUserMessages(self):
         print("Listening to User Manager Messages !!!")
         while True:
             if self.userManager.poll():
                 message = self.userManager.recv()
                 #print("User Said : " , message)
-                print(message["USER_ID"])
+                # print(message["USER_ID"])
 
-                relevantResponse = self.parserUserRequest(message)
-                if(relevantResponse == "EXIT"):
-                    break
+                # print(message)
+
+                msgType = message["TYPE"]
+                if(msgType == "USER_MESSAGE"):
+                    relevantResponse = self.parserUserRequest(message["DATA"])
+                elif(msgType == "USER_MANAGER_MESSAGE"):
+                    # print("User Manager Message Received !!!")
+                    relevantResponse = self.parserUserManagerRequest(message["DATA"])
+                else:
+                    pass
+
             time.sleep(1)
   
     def broadcast(self , message , inBytes = False):
@@ -91,6 +113,19 @@ class sessionSupervisor():
             userManagerMsg = {"TYPE" : "SEND_MESSAGE_TO_USER" , "DATA" : userMsg}
             self.userManager.send(userManagerMsg)
         
+    def sendMessageToUser(self , userId , message):
+        userMsg = {"USER_ID" : userId , "DATA" : message}
+        userManagerMsg = {"TYPE" : "SEND_MESSAGE_TO_USER" , "DATA" : userMsg}
+        self.userManager.send(userManagerMsg)
+
+    def handleUserDisconnect(self , userId):
+        print("Handling User Disconnect !!!")
+        # self.userList.remove(userId)
+        print(self.userList)
+        if self.jobProfile == "RENDERING":
+            self.userDisconnectRender(userId)
+
+# Basic Utility Section END !!! ----------------------------------------------------------------------------------------------
 
 
 # Neural Network Training Section !!! -----------------------------------------------------------------------------------------
@@ -201,10 +236,95 @@ class sessionSupervisor():
 
 # Rendering Section !!! ------------------------------------------------------------------------------------------------------
 
-    def handle_rendering(self , modelData):
+    # Returns the Last and First Frame of a Scene in Blender
+    def getLastAndFirstFrame(self , blendFileName):
+        script_path = "getFrameRange.py"
+        result = subprocess.run(["blender", "--background", blendFileName, "--python", script_path], capture_output=True , text = True)
+        return result.stdout.split('\n')[:2]
+    
+    # Stores the Blend File In Local Directoy from the Binary it is given
+    def saveBlendFileBinary(self , binaryBlendData , customerEmail):
+        dir_path = f'CustomerData/{customerEmail}/InputBlendFiles'
+        os.makedirs(dir_path , exist_ok=True)
+        file_name = (datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
+        with open(f"{dir_path}/{str(file_name)}.blend" , "wb") as file:
+            file.write(binaryBlendData)
+        
+        return str(file_name) + ".blend"
+
+    # Assing Frames to Users when No Frame has been assigned to them , Does not send the frames to them
+    def assignFramesToUsers(self , first_frame , last_frame , number_of_workers):
+        frames_list = list(range(first_frame , last_frame + 1))
+        id_to_frames = {}
+        for worker_number in range(number_of_workers):
+            id_to_frames[self.userList[worker_number]] = frames_list[first_frame + worker_number :: number_of_workers]
+        
+        return id_to_frames
+
+    # Distribute Frames of a list among users and sends that to them
+    def distributeFramesToUsers(self , frameList , number_of_workers):
+        for worker_number in range(number_of_workers):
+            # self.idToFrames[self.userList[worker_number]].extend(frameList[worker_number :: number_of_workers])
+            self.addFrameToUser(self.userList[worker_number] , frameList[worker_number :: number_of_workers])
+
+    # Add a List of Frames to a User and Sends that to them
+    def addFrameToUser(self , userId , frameList):
+        self.sendFramesToUser(userId , frameList)
+        self.idToFrames[userId].extend(frameList)
+
+    # Returns a Dictionary Storing the Status of Frames ranging from [Start Frame , End Frame]
+    def getFrameStatusDict(self , start_frame , last_frame):
+        frameStatus = {}
+        for frame_number in range(start_frame , last_frame + 1):
+            frameStatus[frame_number] = False
+
+    # Broadcast the Blend File Among all the Users
+    def sendBlendFileToUser(self , blendFileBinary):
+        msg = {"TYPE" : "RENDER" , "BLEND_FILE" : blendFileBinary}
+        self.broadcast(msg)
+    
+    # Sends the Frame List to a particular User
+    def sendFramesToUser(self , userId , framesList):
+        msg = {"TYPE" : "FRAME_LIST" , "FRAMES" : framesList}
+        self.sendMessageToUser(userId , msg)
+    
+    # BroadCasts the Respective Frame List to respective Users.
+    def broadcastFramesToUsers(self):
+        for userId in self.userList:
+            self.sendFramesToUser(userId , self.idToFrames[userId])
+
+    # Sends the Message to User to Start the Rendering Process
+    def initiateRenderProcess(self):
+        for userId in self.userList:
+            msg = {"TYPE" : "START_RENDERING"}
+            self.sendMessageToUser(userId , msg)
+
+    # Handles the Case When a User Disconnects and How to React to it
+    def userDisconnectRender(self , userId):
+        userFrames = self.idToFrames[userId]
+        self.userList.remove(userId)
+        fiteredFrames = [frame for frame in userFrames if self.frameStatus[frame] == False]
+        del self.idToFrames[userId]
+        self.distributeFramesToUsers(fiteredFrames , len(self.userList)) # Distributes and Sends the Data to Users
+
+    # Handles What to Do After A User Has Completed Rendering a Frame and Sends it back to Server
+    def handleFrameRenderCompletion(self , userId , data):
         pass
 
+    def handle_rendering(self , renderingInfo):
+        savedFileName = self.saveBlendFileBinary(renderingInfo["BLEND_FILE"] , self.customerEmail)
+        first_frame , last_frame = self.getLastAndFirstFrame(savedFileName)
+        number_of_workers = len(self.userList)
+        self.idToFrames = self.assignFramesToUsers(first_frame , last_frame , number_of_workers)
+        self.frameStatus = self.getFrameStatusDict(first_frame , last_frame)
+        self.sendBlendFileToUser(renderingInfo["BLEND_FILE"])                               # Send the Blend file to users
+        self.broadcastFramesToUsers()                                                       # Sends the relevant List of frames to respectives users
+        self.initiateRenderProcess()                                                        # Directs the User to Start the Rendering Process
+
+
 # Rendering Section END !!! --------------------------------------------------------------------------------------------------
+
+
 
 
 
@@ -214,13 +334,13 @@ class sessionSupervisor():
         self.gradList_Lock = threading.Lock()
 
         print("Running and Managing Session !!!")
-
+        print(data)
 
         userManagerThread = threading.Thread(target=self.listenToUserMessages)
         userManagerThread.start()
 
         
-        self.jobProfile = data["JOB_PROFILE"]
+        self.jobProfile = data["DATA"]["JOB_PROFILE"]
         
         self.userList = []
 
@@ -244,7 +364,7 @@ class sessionSupervisor():
         
 
         print("The List of Users to be used is Here !!!" , self.userList)
-        self.preSetup(self.userList , self.customerEmail)
+        # self.preSetup(self.userList , self.customerEmail)
         print("Pre Setup for the Model Training Has been completed !!!")
 
 
@@ -252,6 +372,7 @@ class sessionSupervisor():
 
 # Main Training Functionalities
 
+        print(self.jobProfile)
         if self.jobProfile == "NEURAL_NETWORK_TRAINING":
             self.customerEmail = data["EMAIL"]
             modelInfo = data["DATA"]
@@ -273,7 +394,9 @@ class sessionSupervisor():
             else:
                 print("Session Status Updation Failed !!")
         elif self.jobProfile == "RENDERING":
-            pass
+            self.customerEmail = data["EMAIL"]
+            renderingInfo = data["DATA"]
+            self.handle_rendering(renderingInfo)
         else:
             pass
 
@@ -282,6 +405,7 @@ class sessionSupervisor():
 # End of Session Manager
 
         userManagerThread.join()
+
 
         
 

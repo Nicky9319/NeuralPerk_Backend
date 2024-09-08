@@ -97,7 +97,9 @@ class UserManager:
             if self.userToCustomerEmailMapping[userId] in self.supervisorToPipeMapping.keys():
                 supervisor = self.userToCustomerEmailMapping[userId]
                 supervisorPipe = self.supervisorToPipeMapping[supervisor]
-                supervisorPipe.send({"USER_ID" : userId , "MESSAGE" : userMessage})
+                userData = {"USER_ID" : userId , "MESSAGE" : userMessage}
+                supervisorPipe.send({"TYPE" : "USER_MESSAGE" , "DATA" : userData})
+                # supervisorPipe.send({"USER_ID" : userId , "MESSAGE" : userMessage})
         elif message == "NEW_USER":
             print("New User Detected !!!")
             self.users.append(serverRequest['USER_ID'])
@@ -105,7 +107,13 @@ class UserManager:
         elif message == "REMOVE_USER":
             print("User Removed !!!")
             userId = serverRequest['USER_ID']
-            self.users.remove(userId)
+            if userId in self.users:
+                self.users.remove(userId)
+            else:
+                supervisorIdentiy = self.userToCustomerEmailMapping[userId]
+                supervisorPipe = self.supervisorToPipeMapping[supervisorIdentiy]
+                userManagerMessage = {"USER_ID" : userId , "TYPE" : "DISCONNECT"}
+                supervisorPipe.send({"TYPE" : "USER_MANAGER_MESSAGE" , "DATA" : userManagerMessage})
             print(self.users)
         else:
             pass

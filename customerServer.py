@@ -38,16 +38,18 @@ class WebHookHandler:
         else:
             return jsonify({'message': 'Session Already Running'}), 403
 
-    # @app.route('/requestSessionCreation', methods=['GET'])
+    # @app.route('/requestSessionCreation', methods=['POST'])
     def createSession(self):
         f = open("customerServerLog.txt" , "a")
         if request.method == 'POST':
             f.write("Session Creation Called !!!")
+            print("Session Creation Called !!!")
             # data = json.dumps(request.get_json())
             content_type = request.headers['Content-Type']
             
             data = None
             if(content_type == 'application/json'):
+                print("JSON Data")
                 data = request.get_json()
             elif(content_type == 'application/bytes'):
                 data=request.get_data()
@@ -56,7 +58,8 @@ class WebHookHandler:
             jsMsg = json.dumps({"EMAIL" : data['EMAIL'] , "PASSWORD" : data['PASSWORD'] , "TYPE" : data['TYPE']})
 
             global ipAddress
-            requestURL = f"http://{ipAddress}:5555/check_node?message={jsMsg}"
+            print("Checking If Node Exists")
+            requestURL = f"http://127.0.0.1:5555/check_node?message={jsMsg}"
             response = requests.get(requestURL)
             if response.status_code == 200:
                 if(response.json()['message'] == "Registered"):
