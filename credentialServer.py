@@ -172,6 +172,49 @@ def get_customer_data_callback():
         return jsonify({'message': 'Method not allowed'}), 405
 
 
+def getEarningPerMinuteGPUTime(gpuType):
+    return 0.25
+
+def alterEarningsAccordingToTime(earningsPerMinute , elapsedTimeSeconds , manualStopping):
+    if(manualStopping and elapsedTimeSeconds < 3600):
+        print("Stopped the Script Too Early !!!")
+        return 0
+    
+    return earningsPerMinute * (elapsedTimeSeconds / 3600)
+
+def updateEarningOfUser(userEmail ,  earningAmount):
+    localconnection = sqlite3.connect('LoginCredentials.db')
+    cursor = localconnection.cursor()
+    cursor.execute("select email from users")
+    queryResult = cursor.fetchall()
+    print(queryResult)
+    if (userEmail,) not in queryResult:
+        return jsonify({'message': 'User Not Found'}), 404
+
+    cursor.execute("update users set earned = earned + ? where email = ?" , (earningAmount , userEmail))
+    cursor.execute("update users set balance = earned - payout where email = ?" , (userEmail,))
+    localconnection.commit()
+
+    return jsonify({'message': 'Earnings Updated'}), 200
+
+@app.route('/updateCustomerEarnings' , methods=['PUT'])
+def update_customer_earnings():
+    print("Request to Update Earning Given !!!")
+    if request.method == "PUT":
+        data = request.get_json()
+        print(data)
+        email = data['EMAIL']
+        manualStopping = data['MANUAL_STOPPING']
+        elapsedTimeSeconds = data['ELAPSED_TIME'] / 1000
+        gpuType = data['GPU_TYPE']
+
+        earningsPerMinute = getEarningPerMinuteGPUTime(gpuType)
+        earnings = alterEarningsAccordingToTime(earningsPerMinute , elapsedTimeSeconds , manualStopping)
+        
+        return updateEarningOfUser(email , earnings)
+    else:
+        print("Method not allowed !!!")
+        return jsonify({'message': 'Method not allowed'}), 405
 
 
 if __name__ == '__main__':
