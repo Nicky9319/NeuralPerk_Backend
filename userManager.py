@@ -15,7 +15,13 @@ class UserManager:
         if message == "NEW_SESSION":
             print("New Session Request !!!")
             userNumber = supervisorRequest['USERS']
-            if len(self.users) < userNumber:
+            if userNumber == "ALL":
+                jsMsg = {"TYPE" : "USER_LIST" , "USERS" : self.users[:] , "NOTICE" : "SUFFICIENT"}
+                for user in self.users[:]:
+                    self.userToCustomerEmailMapping[user] = supervisorIdentityEmail
+                pipe.send(jsMsg)
+                self.users = []
+            elif len(self.users) < userNumber:
                 jsMsg = {"TYPE" : "USER_LIST" , "USERS" : self.users , "NOTICE" : "NOT_SUFFICIENT"}
                 for user in self.users:
                     self.userToCustomerEmailMapping[user] = supervisorIdentityEmail

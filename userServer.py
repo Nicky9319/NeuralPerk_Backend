@@ -288,6 +288,10 @@ class webSocketServer:
             msgToUserManager = {"TYPE" : "USER_MESSAGE" , "MESSAGE" : message , "USER_ID" : sid}
             self.userServer_UserManagerPipe.send(msgToUserManager)
             #self.sio.emit('message', ser_data , room=sid) 
+        elif msgType == "FRAME_RENDERED":
+            print("Received Rendered Image")
+            msgToUserManager = {"TYPE" : "USER_MESSAGE" , "MESSAGE" : message , "USER_ID" : sid}
+            self.userServer_UserManagerPipe.send(msgToUserManager)
         elif msgType == "TEST":  
             print("Test message Received : " , message["DATA"])
         else:
@@ -296,9 +300,9 @@ class webSocketServer:
             print(jsMsg)
             ser_data = pickle.dumps(jsMsg)
             self.socketLock.acquire()
-            print("Socket Acquired !!!")
+            # print("Socket Acquired !!!")
             self.sio.emit('message', ser_data , room=sid)
-            print("Socket Released !!!")
+            # print("Socket Released !!!")
             self.socketLock.release()
 
 

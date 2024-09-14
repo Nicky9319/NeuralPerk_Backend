@@ -12,8 +12,6 @@ import datetime
 import copy
 
 
-import message_handler
-from message_handler import Message , MessageTypes
 
 class sessionSupervisor():
     def __init__(self , customerAgentPipe , userManagerPipe) -> None:
@@ -76,6 +74,9 @@ class sessionSupervisor():
             print("Grads Updated for the particular Index !! : " , index)
         elif(messageType == "MESSAGE"):
             print("Received Message : " , mainMessage["DATA"])
+        elif(messageType == "FRAME_RENDERED"):
+            print("Frame Rendered Successfully By user : " , userId)
+            self.handleFrameRenderCompletion(userId , mainMessage)
         pass
 
     def parserUserManagerRequest(self , message):
@@ -246,23 +247,49 @@ class sessionSupervisor():
         result = subprocess.run(["blender", "--background", blendFileName, "--python", script_path], capture_output=True , text = True)
         return result.stdout.split('\n')[:2]
     
-    # Stores the Blend File In Local Directoy from the Binary it is given
+    # Stores the Blend File In Local Directoy from the Binary it is given and also stores the name of the Folder
     def saveBlendFileBinary(self , binaryBlendData , customerEmail):
-        dir_path = f'CustomerData/{customerEmail}/InputBlendFiles'
+        dir_path = f'CustomerData/paarthsaxena2005@gmail.com/Rendering'
         os.makedirs(dir_path , exist_ok=True)
-        file_name = (datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
-        with open(f"{dir_path}/{str(file_name)}.blend" , "wb") as file:
+
+        file_name = (datetime.datetime.now().strftime("%Y-%m-%d,%H-%M-%S"))
+        sub_dir_path = f'{dir_path}/{file_name}'
+        os.makedirs(sub_dir_path , exist_ok=True)
+
+        input_file_path = f'{sub_dir_path}/InputBlendFile'
+        os.makedirs(input_file_path , exist_ok=True)
+
+        output_file_path = f'{sub_dir_path}/RenderedFiles'
+        os.makedirs(output_file_path , exist_ok=True)
+
+        renderer_images_path = f'{output_file_path}/Images'
+        os.makedirs(renderer_images_path , exist_ok=True)
+
+        renderer_videos_path = f'{output_file_path}/Video'
+        os.makedirs(renderer_videos_path , exist_ok=True)
+
+        with open(f"{input_file_path}/{str(file_name)}.blend" , "wb") as file:
             file.write(binaryBlendData)
         
-        return str(file_name) + ".blend"
+        self.currentFolder = sub_dir_path
+        self.renderedImagesFolder = renderer_images_path
+        return f"{input_file_path}/{str(file_name)}" + ".blend"
 
     # Assing Frames to Users when No Frame has been assigned to them , Does not send the frames to them
     def assignFramesToUsers(self , first_frame , last_frame , number_of_workers):
+        # print("ASSIGN FRAMES TO USERS CODE SNIPPET")
+        # print(first_frame , last_frame , number_of_workers)
         frames_list = list(range(first_frame , last_frame + 1))
+        # print("FRAMES LIST NOTIONAL")
+        # print(frames_list)
         id_to_frames = {}
         for worker_number in range(number_of_workers):
-            id_to_frames[self.userList[worker_number]] = frames_list[first_frame + worker_number :: number_of_workers]
+            print("WORKER NUMBER  : " , worker_number)
+            print(first_frame + worker_number)
+            print(frames_list[first_frame + worker_number :: number_of_workers])
+            id_to_frames[self.userList[worker_number]] = frames_list[worker_number :: number_of_workers]
         
+        # print(f"Frames Assigned to Each User : \n", id_to_frames)
         return id_to_frames
 
     # Distribute Frames of a list among users and sends that to them
@@ -278,18 +305,25 @@ class sessionSupervisor():
 
     # Returns a Dictionary Storing the Status of Frames ranging from [Start Frame , End Frame]
     def getFrameStatusDict(self , start_frame , last_frame):
+        # print("FRAME STATUS DICT CODE SNIPPET")
+        # print(start_frame , last_frame)
         frameStatus = {}
         for frame_number in range(start_frame , last_frame + 1):
+            # print(frame_number)
             frameStatus[frame_number] = False
+            # print(frameStatus[frame_number])
+        
+        # print(f"Frame Status Dict Before Sending : \n" , frameStatus)
+        return frameStatus
 
     # Broadcast the Blend File Among all the Users
     def sendBlendFileToUser(self , blendFileBinary):
-        msg = {"TYPE" : "RENDER" , "BLEND_FILE" : blendFileBinary}
+        msg = {"TYPE" : "BLEND_FILE" , "DATA" : blendFileBinary}
         self.broadcast(msg)
     
     # Sends the Frame List to a particular User
     def sendFramesToUser(self , userId , framesList):
-        msg = {"TYPE" : "FRAME_LIST" , "FRAMES" : framesList}
+        msg = {"TYPE" : "FRAME_LIST" , "DATA" : framesList}
         self.sendMessageToUser(userId , msg)
     
     # BroadCasts the Respective Frame List to respective Users.
@@ -311,20 +345,60 @@ class sessionSupervisor():
         del self.idToFrames[userId]
         self.distributeFramesToUsers(fiteredFrames , len(self.userList)) # Distributes and Sends the Data to Users
 
+    # Saves the Binary Image derived from Binary in Local Directory with it's extension
+    def saveImageInDirectory(self, imageBinary , frameNumber , ext = 'png'):
+        print("Image Saved FRAME NUMBER : " , frameNumber)
+        # print(self.currentFolder)
+        # print(self.renderedImagesFolder)
+        with open(self.renderedImagesFolder + f"/{frameNumber}.{ext}" , "wb") as file:
+            file.write(imageBinary)
+
     # Handles What to Do After A User Has Completed Rendering a Frame and Sends it back to Server
     def handleFrameRenderCompletion(self , userId , data):
+        print(f"USER {userId} RENDERED FRAME {data['FRAME_NUMBER']}")
+        frameNumber = data["FRAME_NUMBER"]
+        imageBinary = data["DATA"]
+        imageExtension = data["IMAGE_EXTENSION"]
+        self.saveImageInDirectory(imageBinary , frameNumber , imageExtension)
+        self.frameStatus[frameNumber] = True
+        self.idToFrames[userId].remove(frameNumber)
+        self.totalFrame -= 1
+        if self.totalFrame == 0:
+            self.renderingCompletion.set()
+        print(f"Remaing Frames of User {userId} : " , self.idToFrames[userId])
+        
+    # Combining the Indiviual Frames to Final Video
+    def reconcileFrameToVideo(self):
+        print("Reconciling the Frames to Video !!!")
         pass
 
+    # Main Function to Handle the Rendering Process
     def handle_rendering(self , renderingInfo):
-        savedFileName = self.saveBlendFileBinary(renderingInfo["BLEND_FILE"] , self.customerEmail)
-        first_frame , last_frame = self.getLastAndFirstFrame(savedFileName)
+        savedFileName = self.saveBlendFileBinary(renderingInfo["DATA"] , self.customerEmail)
+        last_frame , first_frame = self.getLastAndFirstFrame(savedFileName)
+        first_frame = int(first_frame)
+        last_frame = int(last_frame)
+        last_frame = 11
+        print(type(first_frame) , first_frame , type(last_frame) , last_frame)
         number_of_workers = len(self.userList)
+        print(f"Number of Worker Nodes : " , number_of_workers)
         self.idToFrames = self.assignFramesToUsers(first_frame , last_frame , number_of_workers)
         self.frameStatus = self.getFrameStatusDict(first_frame , last_frame)
-        self.sendBlendFileToUser(renderingInfo["BLEND_FILE"])                               # Send the Blend file to users
+        self.totalFrame = len(self.frameStatus.keys())
+        # print(self.userList)
+        print(f"Frame Division to Each Worker : " , self.idToFrames)
+        # print(f"Frame Status Dict : {self.frameStatus}")
+
+        self.sendBlendFileToUser(renderingInfo["DATA"])                               # Send the Blend file to users
         self.broadcastFramesToUsers()                                                       # Sends the relevant List of frames to respectives users
         self.initiateRenderProcess()                                                        # Directs the User to Start the Rendering Process
+        print("Workers Started Rendering the Scenes")
 
+        self.renderingCompletion.wait()
+        self.reconcileFrameToVideo()
+        print("Rendering Process Completed !!!")
+        self.renderingCompletion.clear()
+        # self.renderingCompletion.clear(self.customerEmail)
 
 # Rendering Section END !!! --------------------------------------------------------------------------------------------------
 
@@ -337,8 +411,10 @@ class sessionSupervisor():
         self.gradReadingEvent = threading.Event()
         self.gradList_Lock = threading.Lock()
 
+        self.renderingCompletion = threading.Event()
+
         print("Running and Managing Session !!!")
-        print(data)
+        # print(data)
 
         userManagerThread = threading.Thread(target=self.listenToUserMessages)
         userManagerThread.start()
@@ -350,7 +426,7 @@ class sessionSupervisor():
 
         while True:
             if(len(self.userList) == 0):
-                jsMsg = {"TYPE" : "NEW_SESSION" , "USERS" : 1}
+                jsMsg = {"TYPE" : "NEW_SESSION" , "USERS" : "ALL"}
                 self.userManager.send(jsMsg)
                 response = self.userManager.recv()
                 print(response)
@@ -369,14 +445,15 @@ class sessionSupervisor():
 
         print("The List of Users to be used is Here !!!" , self.userList)
         # self.preSetup(self.userList , self.customerEmail)
-        print("Pre Setup for the Model Training Has been completed !!!")
+        # print("Pre Setup for the Model Training Has been completed !!!")
 
 
 
 
 # Main Training Functionalities
 
-        print(self.jobProfile)
+        # print(self.jobProfile)
+        print("\n\n")
         if self.jobProfile == "NEURAL_NETWORK_TRAINING":
             self.customerEmail = data["EMAIL"]
             modelInfo = data["DATA"]
