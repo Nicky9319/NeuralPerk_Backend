@@ -77,6 +77,9 @@ class sessionSupervisor():
         elif(messageType == "FRAME_RENDERED"):
             print("Frame Rendered Successfully By user : " , userId)
             self.handleFrameRenderCompletion(userId , mainMessage)
+        elif(messageType == "RENDER_COMPLETED"):
+            print("Rendering Completed By User : " , userId)
+            self.handleRenderingProcessCompletionCheck(userId)
         pass
 
     def parserUserManagerRequest(self , message):
@@ -364,9 +367,24 @@ class sessionSupervisor():
         self.idToFrames[userId].remove(frameNumber)
         self.totalFrame -= 1
         if self.totalFrame == 0:
+            msg = msg = {"TYPE" : "MESSAGE_FOR_PROCESS_MANAGER" , "DATA" : {"TYPE" : "RENDERING_COMPLETE"}}
+            self.broadcast(msg)
             self.renderingCompletion.set()
         print(f"Remaing Frames of User {userId} : " , self.idToFrames[userId])
         
+    # Aftermath when a user Says it has completed its process
+    def handleRenderingProcessCompletionCheck(self , userId):
+        print(self.idToFrames[userId])
+        if(len(self.idToFrames[userId]) == 0):
+            print("Rendering Process Completed !!!")
+            msg = {"TYPE" : "MESSAGE_FOR_PROCESS_MANAGER" , "DATA" : {"TYPE" : "RENDERING_COMPLETE"}}
+            self.sendMessageToUser(userId , msg)
+        else:
+            print("Asking User to Send Frames !!!")
+            print("Frame List Pending !!!! : " , self.idToFrames[userId])
+            msg = {"TYPE" : "MESSAGE_FOR_PROCESS_MANAGER" , "DATA" : {"TYPE" : "SEND_FRAMES" , "DATA" : self.idToFrames[userId]}}
+            self.sendMessageToUser(userId , msg)
+
     # Combining the Indiviual Frames to Final Video
     def reconcileFrameToVideo(self):
         print("Reconciling the Frames to Video !!!")
@@ -378,7 +396,8 @@ class sessionSupervisor():
         last_frame , first_frame = self.getLastAndFirstFrame(savedFileName)
         first_frame = int(first_frame)
         last_frame = int(last_frame)
-        last_frame = 11
+        # first_frame = 2
+        # last_frame = 15
         print(type(first_frame) , first_frame , type(last_frame) , last_frame)
         number_of_workers = len(self.userList)
         print(f"Number of Worker Nodes : " , number_of_workers)

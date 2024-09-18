@@ -292,6 +292,10 @@ class webSocketServer:
             print("Received Rendered Image")
             msgToUserManager = {"TYPE" : "USER_MESSAGE" , "MESSAGE" : message , "USER_ID" : sid}
             self.userServer_UserManagerPipe.send(msgToUserManager)
+        elif msgType == "RENDER_COMPLETED":
+            print("User Says it has Completed the Process !!!")
+            msgToUserManager = {"TYPE" : "USER_MESSAGE" , "MESSAGE" : message , "USER_ID" : sid}
+            self.userServer_UserManagerPipe.send(msgToUserManager)
         elif msgType == "TEST":  
             print("Test message Received : " , message["DATA"])
         else:
@@ -321,9 +325,16 @@ class webSocketServer:
                 index = self.user_byte_stream_mapping[sid].index(b'<EOF>')
                 print("Lenght of Byte Array : " , len(self.user_byte_stream_mapping[sid]))
                 unpickledData = self.user_byte_stream_mapping[sid][:index]
-                message = pickle.loads(unpickledData)
+                try:
+                    message = pickle.loads(unpickledData)
+                except:
+                    print("Error in Unpickling the Data")
+                    self.user_byte_stream_mapping[sid] = self.user_byte_stream_mapping[sid][index+5:]
+                    print("Length of Remaining Byte Array : " , len(self.user_byte_stream_mapping[sid]))
+                    return
                 # print("Message Received in Batches : " , message)
                 self.user_byte_stream_mapping[sid] = self.user_byte_stream_mapping[sid][index+5:]
+                print("Length of Remaining Byte Array : " , len(self.user_byte_stream_mapping[sid]))
                 #print(self.user_byte_stream_mapping[sid])
                 self.socketLock.acquire()
                 self.sio.emit('response', pickle.dumps({"TYPE" : "RESPONSE" , "DATA" : "RECEIVED" , "TIME" : time.time()}), room=sid)
@@ -407,7 +418,9 @@ class UserServer():
         socketServer.message()
 
         global ipAddress
-        ipAddress = "0.0.0.0"
+        # ipAddress = "0.0.0.0"
+        # ipAddress = "192.168.0.147"
+        ipAddress = '127.0.0.1'
         # listenToUserManagerThread = threading.Thread(target=sessionSupervisor.listenToUserManager)
         # listenToUserManagerThread.start()
 
