@@ -432,11 +432,12 @@ def user_withdraw_put_request(data):
     email = data['EMAIL']
     upiID = data['UPI_ID']
     amount = data['AMOUNT']
+    addNote = data['ADDITIONAL_NOTE']
 
     if mongo.CheckUserExist(email) == False:
         return jsonify({'message': 'User Not Found'}), 404
     
-    if mongo.WithdrawAmount(upiID , amount , email) == False:
+    if mongo.WithdrawAmount(upiID , amount , email, addNote) == False:
         return jsonify({'message': 'Insufficient Balance'}), 400
 
     return jsonify({'message': 'Withdrawal Process Initiated Successfully'}), 200

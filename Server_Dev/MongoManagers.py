@@ -43,7 +43,7 @@ class UserDBManager():
         userInfo = self.credential_GetUserInformation(email)
         return {"TOTAL_EARNINGS": userInfo["TotalEarnings"], "BALANCE": userInfo["Balance"]}
 
-    def WithdrawAmount(self, upiID, amount, email):
+    def WithdrawAmount(self, upiID, amount, email, addNote=""):
         if amount == 0:
             return 
         
@@ -55,7 +55,7 @@ class UserDBManager():
         import datetime as dt
         date = dt.datetime.now().strftime("%d/%m/%Y")
 
-        self.payments_InsertNewPayment(upiID, amount, email, date)
+        self.payments_InsertNewPayment(upiID, amount, email, date, addNote)
         return True
 
     # basic DB Interactions Section END !!! --------------------------------------------------------------------------------------------------------------------------
@@ -394,12 +394,14 @@ class UserDBManager():
 
     # Create Section !!! -----------------------------------------------------------------------------------------------------
 
-    def payments_InsertNewPayment(self, upiID, Amount, email, date):
+    def payments_InsertNewPayment(self, upiID, Amount, email, date, additonNote=""):
         self.PaymentsCollections.insert_one({
             "UpiID": upiID,
             "Amount": Amount,
             "Email": email,
-            "Date": date
+            "Date": date,
+            "Additonal Note": additonNote,
+            "Status": "PENDING"
         })
 
     # Create Section END !!! -------------------------------------------------------------------------------------------------
