@@ -434,6 +434,7 @@ def user_withdraw_put_request(data):
     amount = data['AMOUNT']
     addNote = data['ADDITIONAL_NOTE']
 
+
     if mongo.CheckUserExist(email) == False:
         return jsonify({'message': 'User Not Found'}), 404
     
