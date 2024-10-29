@@ -214,12 +214,13 @@ def server_running_callback():
 
 @app.route('/UserEarnings' , methods=['GET','PUT'])
 def user_earnings_callback():
-    if request.method == "PUT":
+    if request.method == "GET":
+        message = request.args.get('message')
+        data = json.loads(message)
+        return user_earnings_get_requests(data)
+    elif request.method == "PUT":
         data = request.get_json()
         return user_earnings_put_request(data)
-    elif request.method == "GET":
-        data = request.get_json()
-        return user_earnings_get_requests(data)
     else:
         print("Method not allowed !!!")
         return jsonify({'message': 'Method not allowed'}), 405
@@ -244,17 +245,19 @@ def alterEarningsAccordingToTime(earningsPerMinute , elapsedTimeSeconds , manual
         print("Stopped the Script Too Early !!!")
         return 0
     
-    return earningsPerMinute * (elapsedTimeSeconds / 3600)
+    return earningsPerMinute * (elapsedTimeSeconds / 60)
 
 def updateEarningOfUser(userEmail ,  earningAmount):
     if mongo.CheckUserExist(userEmail) == False:
         return jsonify({'message': 'User Not Found'}), 404
     
+    print(earningAmount)
     mongo.credential_IncrementUserTotalEarningsAndBalance(userEmail , earningAmount)
     return jsonify({'message': 'Earnings Updated'}), 200
 
 
 def user_earnings_get_requests(data):
+    print(data)
     email = data["EMAIL"]
     if mongo.CheckUserExist(email) == False:
         return jsonify({'message': 'User Not Found'}), 404
@@ -312,9 +315,8 @@ def app_session_post_request(data):
     StartTime = data['START_TIME']
     EndTime = data['END_TIME']
 
-    if mongo.UEM_CheckUuidExist(UUID) == False:
-        mongo.UEM_InsertNewUUID(UUID)
-        mongo.UEM_InsertNewEmail(UUID , email)
+    mongo.UEM_UuidEmail_CheckAndInsert(UUID , email)
+
 
     mongo.activity_InsertAppSession(email , UUID , StartTime , EndTime)
     return jsonify({'message': 'App Session Added'}), 200
@@ -341,12 +343,10 @@ def container_session_post_request(data):
     StartTime = data['START_TIME']
     EndTime = data['END_TIME']
 
-    if mongo.UEM_CheckUuidExist(UUID) == False:
-        mongo.UEM_InsertNewUUID(UUID)
-        mongo.UEM_InsertNewEmail(UUID , email)
+    mongo.UEM_UuidEmail_CheckAndInsert(UUID , email)
 
     mongo.activity_InsertContainerSession(email , UUID , StartTime , EndTime)
-    return jsonify({'message': 'App Session Added'}), 200
+    return jsonify({'message': 'Container Session Added'}), 200
 
 
 
@@ -404,5 +404,5 @@ def user_withdraw_put_request(data):
 
 if __name__ == '__main__':
     ipAddress = "0.0.0.0"
-    app.run(host=ipAddress, port=5555 , debug=False)
+    app.run(host=ipAddress, port=5555 , debug=True)
  

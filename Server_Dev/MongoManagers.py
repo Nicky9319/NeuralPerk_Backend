@@ -232,6 +232,10 @@ class UserDBManager():
             self. UEM_InsertNewUUID(UUID)
             self.UEM_InsertNewEmail(UUID, email)
         
+        if email not in self.UEM_GetUuidInfo(UUID)['Emails']:
+            print("new Email UUID Pair Found")
+            self.UEM_InsertNewEmail(UUID, email)
+
         return
 
     def UEM_CheckUuidExist(self, UUID):
