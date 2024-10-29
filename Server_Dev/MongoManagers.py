@@ -120,8 +120,8 @@ class UserDBManager():
         self.CredentialCollection.insert_one({
             "Email": email,
             "Password": password,
-            "TotalEarnings": 0,
-            "Balance": 0,
+            "TotalEarnings": 0.0,
+            "Balance": 0.0,
             "Withdrawals": []
         })
 

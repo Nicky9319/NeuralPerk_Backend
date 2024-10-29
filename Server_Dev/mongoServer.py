@@ -7,6 +7,11 @@ import tensorflow as tf
 import keras
 import subprocess
 
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+import random
+
 from MongoManagers import UserDBManager
 mongo = UserDBManager()
 
@@ -200,6 +205,47 @@ def check_node_get_request(data):
 def server_running_callback():
     return jsonify({'message': 'Running'}), 200
 
+
+@app.route('/sendOTP' , methods=['POST'])
+def send_OTP_callback():
+    if request.method == 'POST':
+        data = request.get_json()
+        return send_OTP_post_request(data)
+    else:
+        print("Method not allowed !!!")
+        return jsonify({'message': 'Method not allowed'}), 405
+
+
+def send_OTP_post_request(data):
+    generatedOTP = random.randint(100000, 999999)
+
+    sender_email = 'neuralperk@gmail.com'
+    passkey = 'kibq tobi emip xsqm'
+    receiver_email = data['EMAIL']
+    subject = 'OTP Verification Neural Perk'
+    message = f'Your OTP for Account verification is: {generatedOTP}'
+
+    try:
+        sendEmail(sender_email, passkey, receiver_email, subject, message)
+        return jsonify({'message': 'OTP Sent', "OTP" : generatedOTP}), 200
+    except:
+        return jsonify({'message': 'Email Sending Failed'}), 500
+
+def sendEmail(sender_email, passkey, receiver_email, subject, message):
+    msg = MIMEMultipart()
+    msg['From'] = sender_email
+    msg['To'] = receiver_email
+    msg['Subject'] = subject
+
+    # Add body to the email
+    msg.attach(MIMEText(message, 'plain'))
+
+    # Create SMTP session
+    with smtplib.SMTP('smtp.gmail.com', 587) as server:
+        server.starttls()
+        server.login(sender_email, passkey)
+        server.send_message(msg)
+    
 
 # Basic Endpoints Section END !!! ----------------------------------------------------------------------------------------
 
