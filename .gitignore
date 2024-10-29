@@ -6,3 +6,6 @@ clientSim.py
 prac.py
 userSim.py
 customerSim.py
+Server_Dev/prac.py
+Server_Dev/mongoClassTest.py
+Server_Dev/ApiDBTesting.py
