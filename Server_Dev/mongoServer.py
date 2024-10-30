@@ -290,8 +290,8 @@ def alterEarningsAccordingToTime(earningsPerMinute , elapsedTimeSeconds , manual
     if(manualStopping and elapsedTimeSeconds < 3600):
         print("Stopped the Script Too Early !!!")
         return 0
-    elif(not manualStopping and elapsedTimeSeconds < 60):
-        print("Script Ran for Less than 1 Mins, So Auto Closing Doesnt Count !!!")
+    elif(not manualStopping and elapsedTimeSeconds < 120):
+        print("Script Ran for Less than 2 Mins, So Auto Closing Doesnt Count !!!")
         return 0    
     
     return earningsPerMinute * (elapsedTimeSeconds / 60)
