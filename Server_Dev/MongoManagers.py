@@ -245,7 +245,23 @@ class UserDBManager():
         
         return True
 
+    def UEM_UuidGPU_CheckAndInsert(self, UUID, GPU):
+        if self.UEM_CheckUuidExist(UUID) == False:
+            self. UEM_InsertNewUUID(UUID)
+            self.UEM_InsertNewGPU(UUID, GPU)
+        
+        # print(self.UEM_GetUuidInfo(UUID))
+        # print(type(self.UEM_GetUuidInfo(UUID)))
+        if 'GPUs' not in self.UEM_GetUuidInfo(UUID):
+            self.UEM_InsertNewGPU(UUID, GPU)
+            return
+        elif GPU not in self.UEM_GetUuidInfo(UUID)['GPUs']:
+            self.UEM_InsertNewGPU(UUID, GPU)
+
+        return
+
     # Basic Utility Functions END !!! ---------------------------------------------------------------------------------------
+
 
 
 
@@ -260,7 +276,11 @@ class UserDBManager():
 
     def UEM_InsertNewEmail(self, UUID, email):
         self.UEM_Collections.update_one({"UUID": UUID}, {"$push": {"Emails": email}})
-        pass
+
+    def UEM_InsertNewGPU(self, UUID, GPU):
+        print("New Gpu Inserted Request")
+        self.UEM_Collections.update_one({"UUID": UUID}, {"$push": {"GPUs": GPU}})
+
 
     # Create Section END !!! -------------------------------------------------------------------------------------------------
 

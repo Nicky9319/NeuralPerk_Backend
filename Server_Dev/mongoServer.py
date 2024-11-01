@@ -277,11 +277,20 @@ def user_earnings_put_request(data):
     manualStopping = data['MANUAL_STOPPING']
     elapsedTimeSeconds = data['ELAPSED_TIME'] / 1000
     gpuType = data['GPU_TYPE']
+    uuid = data['UUID']
 
     earningsPerMinute = getEarningPerMinuteGPUTime(gpuType)
     earnings = alterEarningsAccordingToTime(earningsPerMinute , elapsedTimeSeconds , manualStopping)
     
-    return updateEarningOfUser(email , earnings)
+    checkAndUpdateUUIDGpu(email, uuid , gpuType)
+    return updateEarningOfUser(email , earnings, uuid)
+
+def checkAndUpdateUUIDGpu(email, UUID , gpuType):
+    if mongo.CheckUserExist(email):
+        print("Checking and Inserting GPU !!!")
+        mongo.UEM_UuidGPU_CheckAndInsert(UUID , gpuType)
+    else:
+        return None
 
 def getEarningPerMinuteGPUTime(gpuType):
     return 0.25
@@ -296,12 +305,13 @@ def alterEarningsAccordingToTime(earningsPerMinute , elapsedTimeSeconds , manual
     
     return earningsPerMinute * (elapsedTimeSeconds / 60)
 
-def updateEarningOfUser(userEmail ,  earningAmount):
+def updateEarningOfUser(userEmail ,  earningAmount, UUID = None):
     if mongo.CheckUserExist(userEmail) == False:
         return jsonify({'message': 'User Not Found'}), 404
     
     print(earningAmount)
     mongo.credential_IncrementUserTotalEarningsAndBalance(userEmail , earningAmount)
+    # Update the UUID with the GPU
     return jsonify({'message': 'Earnings Updated'}), 200
 
 
