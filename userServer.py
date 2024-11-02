@@ -207,9 +207,9 @@ class UserServer():
         socketServer.message()
 
         global ipAddress
-        # ipAddress = "0.0.0.0"
+        ipAddress = "0.0.0.0"
         # ipAddress = "192.168.0.147"
-        ipAddress = '127.0.0.1'
+        # ipAddress = '127.0.0.1'
         # listenToUserManagerThread = threading.Thread(target=sessionSupervisor.listenToUserManager)
         # listenToUserManagerThread.start()
 
