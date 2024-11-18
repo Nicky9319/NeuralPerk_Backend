@@ -3,8 +3,8 @@ import json
 import sqlite3
 import os
 import pickle
-import tensorflow as tf
-import keras
+# import tensorflow as tf
+# import keras
 import subprocess
 
 app = Flask(__name__)

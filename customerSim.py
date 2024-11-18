@@ -15,8 +15,8 @@ jsMsgDumps = pickle.dumps(jsMsg)
 statusMsg = { "TYPE" : "CUSTOMERS" , "EMAIL" : "paarthsaxena2005@gmail.com"}
 statusMsg = json.dumps(statusMsg)
 
-ipAddress = '127.0.0.1'
-# ipAddress = '128.199.31.223'
+# ipAddress = '127.0.0.1'
+ipAddress = '128.199.31.223'
 
 
 response = requests.get(f"http://{ipAddress}:5500/serverRunning")
@@ -25,6 +25,7 @@ print(response.text)
 
 response = requests.post(f"http://{ipAddress}:5500/requestSessionCreation" , data = jsMsgDumps , headers={'Content-Type': 'application/bytes'})
 print(response.text)
+print(response.status_code)
 
 response = requests.get(f"http://{ipAddress}:5500/sessionSTATUS?message={statusMsg}")
 print(response.text)
