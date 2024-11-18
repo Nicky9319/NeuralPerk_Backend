@@ -230,7 +230,11 @@ def check_node_callback():
 
 def check_node_get_request(data):
     if(data['TYPE'] == "CUSTOMERS"):
-        pass
+        email = data['EMAIL']
+        if email == "paarthsaxena2005@gmail.com":
+            return jsonify({'message': 'Registered'}), 200
+        
+        return jsonify({'message': 'Unregistered'}), 200
         # credsVal = (data['EMAIL'],)
         # cursor.execute("select email from customers")
         # queryResult = cursor.fetchall()
@@ -419,6 +423,7 @@ def app_session_callback():
 
 def app_session_post_request(data):
     email = data['EMAIL']
+    print(email)
     if mongo.CheckUserExist(email) == False:
         return jsonify({'message': 'User Not Found'}), 404
     
