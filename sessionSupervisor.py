@@ -1,7 +1,7 @@
 import time
 import threading
 # import tensorflow as tf
-import keras
+# import keras
 import pickle
 import requests
 import json
@@ -149,21 +149,21 @@ class sessionSupervisor():
         #print("All Grads Received !!")
         avgAccuracy = sum(self.accuracyList) / len(self.accuracyList)
         avgLoss = sum(self.lossList) / len(self.lossList)
-        avgModel = keras.models.model_from_json(self.model.to_json())
-        layerLength = len(avgModel.layers)
-        gradModel = keras.models.model_from_json(self.model.to_json())
-        gradModel.set_weights(self.gradList[0])
-        for ind in range(1 , len(self.gradList)):
-            print(ind)
-            gradModel.set_weights(self.aggregateGrads(gradModel.get_weights() , self.gradList[ind]))
-        avgModel.set_weights(self.meanGrads(gradModel.get_weights() , len(self.gradList)))
-        self.gradReadingEvent.clear()
-        self.gradList = [None for indices in range(len(self.userList))]
-        #print("After Finding Aggregated Gradients !! , GradList = " , gradList)
+        # avgModel = keras.models.model_from_json(self.model.to_json())
+        # layerLength = len(avgModel.layers)
+        # gradModel = keras.models.model_from_json(self.model.to_json())
+        # gradModel.set_weights(self.gradList[0])
+        # for ind in range(1 , len(self.gradList)):
+        #     print(ind)
+        #     gradModel.set_weights(self.aggregateGrads(gradModel.get_weights() , self.gradList[ind]))
+        # avgModel.set_weights(self.meanGrads(gradModel.get_weights() , len(self.gradList)))
+        # self.gradReadingEvent.clear()
+        # self.gradList = [None for indices in range(len(self.userList))]
+        # #print("After Finding Aggregated Gradients !! , GradList = " , gradList)
 
-        self.currentAccuracy = avgAccuracy
-        self.currentLoss = avgLoss
-        return avgModel
+        # self.currentAccuracy = avgAccuracy
+        # self.currentLoss = avgLoss
+        # return avgModel
 
     def aggregateGrads(self , w1 , w2):
         length = len(w1)
@@ -474,25 +474,25 @@ class sessionSupervisor():
         # print(self.jobProfile)
         print("\n\n")
         if self.jobProfile == "NEURAL_NETWORK_TRAINING":
-            self.customerEmail = data["EMAIL"]
-            modelInfo = data["DATA"]
+            pass
+            # self.customerEmail = data["EMAIL"]
+            # modelInfo = data["DATA"]
 
-            self.currentDateTime = data["DATETIME"]
-            print("Current Date Time : " , self.currentDateTime)
+            # self.currentDateTime = data["DATETIME"]
+            # print("Current Date Time : " , self.currentDateTime)
 
-            print(type(modelInfo["MODEL_JSON"]))
-            #self.model = keras.models.model_from_json(modelInfo["MODEL_JSON"])
-            self.model = keras.models.model_from_json(json.dumps(modelInfo["MODEL_JSON"]))
-            print(self.model.summary())
-            self.epochs = modelInfo["EPOCHS"]
+            # print(type(modelInfo["MODEL_JSON"]))
+            # self.model = keras.models.model_from_json(json.dumps(modelInfo["MODEL_JSON"]))
+            # print(self.model.summary())
+            # self.epochs = modelInfo["EPOCHS"]
             
-            self.handle_model_training(modelInfo)
+            # self.handle_model_training(modelInfo)
 
-            response = requests.put("http://127.0.0.1:5500/updateSessionStatus" , json = {"EMAIL" : self.customerEmail , "STATUS" : "IDLE"})
-            if response.status_code == 200:
-                print("Session Status Updated Successfully !!")
-            else:
-                print("Session Status Updation Failed !!")
+            # response = requests.put("http://127.0.0.1:5500/updateSessionStatus" , json = {"EMAIL" : self.customerEmail , "STATUS" : "IDLE"})
+            # if response.status_code == 200:
+            #     print("Session Status Updated Successfully !!")
+            # else:
+            #     print("Session Status Updation Failed !!")
         elif self.jobProfile == "RENDERING":
             self.customerEmail = data["EMAIL"]
             renderingInfo = data["DATA"]

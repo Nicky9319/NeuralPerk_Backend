@@ -3,8 +3,8 @@ import json
 import sqlite3
 import os
 import pickle
-import tensorflow as tf
-import keras
+# import tensorflow as tf
+# import keras
 import subprocess
 import logging
 
@@ -50,13 +50,15 @@ def update_customer_data_callback():
         elif request.content_type == 'application/json':
             data = request.get_json()
         
+        customerDataPath = "CustomerData/" + data['EMAIL']
+
         if data["TYPE"] == "ADD_NEW_MODEL":
-            logger.debug("Saving New Model to the Customer Data Directory !!!")
-            customerDataPath = "CustomerData/" + data['EMAIL']  
-            modelConfig = data['MODEL_CONFIG']
-            model = keras.models.model_from_json(modelConfig)
-            model.set_weights(data['MODEL_WEIGHTS'])
-            model.save(customerDataPath + "/" + data["MODEL_NAME"] + ".h5")
+            return jsonify({'message': 'Not a Valid Demand, No Model Upadting Enabled'}), 405
+            # logger.debug("Saving New Model to the Customer Data Directory !!!")
+            # modelConfig = data['MODEL_CONFIG']
+            # model = keras.models.model_from_json(modelConfig)
+            # model.set_weights(data['MODEL_WEIGHTS'])
+            # model.save(customerDataPath + "/" + data["MODEL_NAME"] + ".h5")
 
 
 
@@ -81,18 +83,19 @@ def get_customer_data_callback():
             modelNameList = [model.split(".")[0] for model in trainedModelList]
             return jsonify({'message': "trained Model List" , "DATA" : modelNameList}), 200
         elif msgType == "GET_MODEL":
-            modelName = data['MODEL_NAME']
-            modelPath = "CustomerData/" + data['EMAIL'] + "/" + modelName + ".h5"
-            if os.path.exists(modelPath):
-                model = tf.keras.models.load_model(modelPath)
-                modelConfig = model.to_json()
-                modelWeights = model.get_weights()
-                logger.debug(str(len(pickle.dumps({'message': "Model Found" , "MODEL_CONFIG" : modelConfig , "MODEL_WEIGHTS" : modelWeights}))))
-                logger.debug(str(type(modelConfig)))
-                logger.debug(str(type(modelWeights)))
-                return Response(pickle.dumps({'message': "Model Found" , "MODEL_CONFIG" : modelConfig , "MODEL_WEIGHTS" : modelWeights})  , mimetype='application/octet-stream' , status=200) 
-            else:
-                return jsonify({'message': "Model Not Found"}), 404
+            return jsonify({'message': 'Not a Valid Demand, No Model Retriving Enabled'}), 405
+            # modelName = data['MODEL_NAME']
+            # modelPath = "CustomerData/" + data['EMAIL'] + "/" + modelName + ".h5"
+            # if os.path.exists(modelPath):
+            #     model = tf.keras.models.load_model(modelPath)
+            #     modelConfig = model.to_json()
+            #     modelWeights = model.get_weights()
+            #     logger.debug(str(len(pickle.dumps({'message': "Model Found" , "MODEL_CONFIG" : modelConfig , "MODEL_WEIGHTS" : modelWeights}))))
+            #     logger.debug(str(type(modelConfig)))
+            #     logger.debug(str(type(modelWeights)))
+            #     return Response(pickle.dumps({'message': "Model Found" , "MODEL_CONFIG" : modelConfig , "MODEL_WEIGHTS" : modelWeights})  , mimetype='application/octet-stream' , status=200) 
+            # else:
+            #     return jsonify({'message': "Model Not Found"}), 404
     else:
         logger.debug("Method not allowed !!!")
         return jsonify({'message': 'Method not allowed'}), 405

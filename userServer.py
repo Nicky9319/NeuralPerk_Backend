@@ -3,8 +3,8 @@ import asyncio
 import uuid
 
 from flask import Flask, jsonify , request
-from flask_sock import Sock
-from flask_socketio import SocketIO, emit
+# from flask_sock import Sock
+# from flask_socketio import SocketIO, emit
 
 
 import concurrent.futures
@@ -14,14 +14,14 @@ import eventlet
 import eventlet.wsgi
 import pickle
 
-import numpy as np
+# import numpy as np
 import time
 
 import threading
 
 from flask import Flask, jsonify , request
 
-
+import logging
 
 from customerAgent import customerAgent
 
@@ -57,6 +57,7 @@ class webSocketServer:
         def disconnect(sid):
             del self.clients[sid]
             print(f'Client {sid} disconnected')
+            # print(f"Reason For Disconnect: {reason}")
             self.userServer_UserManagerPipe.send({"TYPE" : "REMOVE_USER" , "USER_ID" : sid})
 
     
@@ -190,7 +191,13 @@ class UserServer():
         # self.socketio = socketio
 
     def startServer(self, userServer_UserManagerPipe = None):
-        sio = socketio.Server(ping_timeout=60, ping_interval=25 , max_http_buffer_size=1024*1024*150)
+        logger = logging.getLogger('socketio_server')
+        logger.setLevel(logging.DEBUG)  # Set the desired logging level
+        file_handler = logging.FileHandler('serverConnection.log')
+        file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+        logger.addHandler(file_handler)
+
+        sio = socketio.Server(ping_timeout=60, ping_interval=25 , max_http_buffer_size=1024*1024*150, logger=logger,engineio_logger=logger)
         app = socketio.WSGIApp(sio) 
         socketLock = threading.Lock()
 

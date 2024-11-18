@@ -72,7 +72,7 @@ class WebHookHandler:
         else:
             return jsonify({'message': 'Method not allowed'}), 405
         
-        
+    
 
     def initialize_customer_session(self , customerEmail):
         print(f"Session Inititalized for the Customer : {customerEmail}")
