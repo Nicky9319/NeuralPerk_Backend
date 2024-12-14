@@ -248,6 +248,7 @@ class sessionSupervisor():
     def getLastAndFirstFrame(self , blendFileName):
         script_path = "getFrameRange.py"
         result = subprocess.run(["blender", "--background", blendFileName, "--python", script_path], capture_output=True , text = True)
+        print(result)
         return result.stdout.split('\n')[:2]
     
     # Stores the Blend File In Local Directoy from the Binary it is given and also stores the name of the Folder
@@ -394,6 +395,7 @@ class sessionSupervisor():
     def handle_rendering(self , renderingInfo):
         savedFileName = self.saveBlendFileBinary(renderingInfo["DATA"] , self.customerEmail)
         last_frame , first_frame = self.getLastAndFirstFrame(savedFileName)
+        print(last_frame , first_frame)
         first_frame = int(first_frame)
         last_frame = int(last_frame)
         # first_frame = 2
