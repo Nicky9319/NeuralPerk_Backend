@@ -54,7 +54,7 @@ class webSocketServer:
         async def connect(sid, environ):
             # self.user_byte_stream_mapping[sid] = bytearray()
             self.socketLock.acquire()
-            await self.sio.emit('message', pickle.dumps({"TYPE" : "RESPONSE" , "DATA" : "CONNECTED" , "TIME" : time.time()}), room=sid)
+            # await self.sio.emit('message', pickle.dumps({"TYPE" : "RESPONSE" , "DATA" : "CONNECTED" , "TIME" : time.time()}), room=sid)
             self.socketLock.release()
             print(f"A New User with ID {sid} Connected")
 
@@ -167,6 +167,23 @@ class httpServer:
             print(bufferUUID)
             if bufferUUID in self.bufferMsgs.keys():
                 bufferMsg = self.bufferMsgs[bufferUUID]
+
+                if "META_DATA" in bufferMsg.keys():
+                    if bufferMsg["META_DATA"] == "EXTRACT_BLEND_FILE_FROM_PATH":
+                        def getBlendBinaryFromPath(blendPath):
+                            print(bufferMsg)
+                            print(f"Blender File Path : {bufferMsg['DATA']}") 
+                            
+                            fileBinary = None
+                            with open(bufferMsg["DATA"] , 'rb') as file:
+                                fileBinary =  file.read()
+                            
+                            print(len(pickle.dumps(fileBinary)))
+                            return fileBinary
+                            
+                            
+                        bufferMsg["DATA"] = getBlendBinaryFromPath(bufferMsg["DATA"])
+
                 del self.bufferMsgs[bufferUUID]
                 return Response(content=pickle.dumps(bufferMsg), status_code=200, media_type="application/octet-stream")
             return Response(content=pickle.dumps({"message": "No Buffer Message"}), status_code=400, media_type="application/octet-stream")

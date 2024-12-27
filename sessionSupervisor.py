@@ -329,8 +329,8 @@ class sessionSupervisor():
         return frameStatus
 
     # Broadcast the Blend File Among all the Users
-    def sendBlendFileToUser(self , blendFileBinary):
-        msg = {"TYPE" : "BLEND_FILE" , "DATA" : blendFileBinary}
+    def sendBlendFileToUser(self , blendFilePath):
+        msg = {"TYPE" : "BLEND_FILE" , "DATA" : blendFilePath, "META_DATA" : "EXTRACT_BLEND_FILE_FROM_PATH"}
         self.broadcast(msg)
     
     # Sends the Frame List to a particular User
@@ -418,7 +418,7 @@ class sessionSupervisor():
         print(f"Frame Division to Each Worker : " , self.idToFrames)
         # print(f"Frame Status Dict : {self.frameStatus}")
 
-        self.sendBlendFileToUser(renderingInfo["DATA"])                               # Send the Blend file to users
+        self.sendBlendFileToUser(savedFileName)                                             # Send the Blend file to users
         self.broadcastFramesToUsers()                                                       # Sends the relevant List of frames to respectives users
         self.initiateRenderProcess()                                                        # Directs the User to Start the Rendering Process
         print("Workers Started Rendering the Scenes")
