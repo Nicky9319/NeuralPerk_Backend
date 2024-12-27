@@ -3,3 +3,8 @@ requests
 python-socketio
 eventlet
 pymongo
+gunicorn
+
+redis
+fastapi
+uvicorn

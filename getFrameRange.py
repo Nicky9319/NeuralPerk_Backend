@@ -4,5 +4,8 @@ import bpy
 last_frame = bpy.context.scene.frame_end
 first_frame = bpy.context.scene.frame_start
 
-print(last_frame)
-print(first_frame)
+# print(last_frame)
+# print(first_frame)
+
+print(f"FF:{first_frame}")
+print(f"LF:{last_frame}")

@@ -247,9 +247,17 @@ class sessionSupervisor():
     # Returns the Last and First Frame of a Scene in Blender
     def getLastAndFirstFrame(self , blendFileName):
         script_path = "getFrameRange.py"
+        print("Getting the Frame Range of the Scene !!!")
         result = subprocess.run(["blender", "--background", blendFileName, "--python", script_path], capture_output=True , text = True)
-        print(result)
-        return result.stdout.split('\n')[:2]
+        print("Process Of Finding Frame Completed !!!")
+
+        output = result.stdout.split("\n")
+
+        first_frame = [line.split(":")[1] for line in output if "FF" in line.split(":")[0]][0]
+        last_frame = [line.split(":")[1] for line in output if "LF" in line.split(":")[0]][0]
+
+        frameList = [last_frame, first_frame]
+        return frameList
     
     # Stores the Blend File In Local Directoy from the Binary it is given and also stores the name of the Folder
     def saveBlendFileBinary(self , binaryBlendData , customerEmail):

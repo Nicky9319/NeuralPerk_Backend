@@ -3,18 +3,12 @@ import asyncio
 import uuid
 
 from flask import Flask, jsonify , request
-# from flask_sock import Sock
-# from flask_socketio import SocketIO, emit
-
-
-import concurrent.futures
 
 import socketio
 import eventlet
 import eventlet.wsgi
 import pickle
 
-# import numpy as np
 import time
 import threading
 
