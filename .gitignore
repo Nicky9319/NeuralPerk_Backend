@@ -12,3 +12,5 @@ Server_Dev/ApiDBTesting.py
 serverConnection.log
 credentialServer.log
 progressUpload.py
+customerSim.py
+ServerSetup
