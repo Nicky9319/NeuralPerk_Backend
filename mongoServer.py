@@ -338,10 +338,20 @@ def user_earnings_put_request(data):
     uuid = data['UUID']
 
     earningsPerMinute = getEarningPerMinuteGPUTime(gpuType)
+
     earnings = alterEarningsAccordingToTime(earningsPerMinute , elapsedTimeSeconds , manualStopping)
+    print(f"Earnings Before String it down to 2 decimals : {str(earnings)}")
+
+    earnings = float(stripEarningsToTwoDecimal(earnings))
+    print(f"Earnings After String it down to 2 decimals : {str(earnings)}")
+
+    print(type(earnings))
     
     checkAndUpdateUUIDGpu(email, uuid , gpuType)
     return updateEarningOfUser(email , earnings)
+
+def stripEarningsToTwoDecimal(earnings):
+    return "{:.2f}".format(earnings)
 
 def checkAndUpdateUUIDGpu(email, UUID , gpuType):
     if mongo.CheckUserExist(email):
