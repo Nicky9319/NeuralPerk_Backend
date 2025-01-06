@@ -95,6 +95,10 @@ class UserDBManager():
             endTime = session['EndTime']
             hoursSpend += self.credential_helper_CalculateTimeDifferenceInHours(startTime, endTime)
         
+        def stripHoursSpendToTwoDecimal(number):
+            return "{:.2f}".format(number)
+        
+        hoursSpend = stripHoursSpendToTwoDecimal(hoursSpend)
         return hoursSpend
 
     def credential_DecreaseUserBalance(self, email, amount):
