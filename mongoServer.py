@@ -69,7 +69,7 @@ def update_customer_data_callback():
         else:
             return jsonify({'message': 'Customer Data Not Found'}), 404
     else:
-        logger.debug("Method not allowed !!!")
+        # logger.debug("Method not allowed !!!")
         return jsonify({'message': 'Method not allowed'}), 405
 
 @app.route('/getCustomerData' , methods=['GET'])
@@ -90,14 +90,14 @@ def get_customer_data_callback():
             #     model = tf.keras.models.load_model(modelPath)
             #     modelConfig = model.to_json()
             #     modelWeights = model.get_weights()
-            #     logger.debug(str(len(pickle.dumps({'message': "Model Found" , "MODEL_CONFIG" : modelConfig , "MODEL_WEIGHTS" : modelWeights}))))
-            #     logger.debug(str(type(modelConfig)))
-            #     logger.debug(str(type(modelWeights)))
+            #     # logger.debug(str(len(pickle.dumps({'message': "Model Found" , "MODEL_CONFIG" : modelConfig , "MODEL_WEIGHTS" : modelWeights}))))
+            #     # logger.debug(str(type(modelConfig)))
+            #     # logger.debug(str(type(modelWeights)))
             #     return Response(pickle.dumps({'message': "Model Found" , "MODEL_CONFIG" : modelConfig , "MODEL_WEIGHTS" : modelWeights})  , mimetype='application/octet-stream' , status=200) 
             # else:
             #     return jsonify({'message': "Model Not Found"}), 404
     else:
-        logger.debug("Method not allowed !!!")
+        # logger.debug("Method not allowed !!!")
         return jsonify({'message': 'Method not allowed'}), 405
 
 
@@ -146,7 +146,7 @@ def credentials_callback():
     elif request.method == 'POST':
         return credentials_post_request(request.get_json())
     else:
-        logger.debug("Method not allowed !!!")
+        # logger.debug("Method not allowed !!!")
         return jsonify({'message': 'Method not allowed'}), 405
 
 
@@ -163,10 +163,10 @@ def credentials_get_request(data):
     elif(data['TYPE'] == "USERS"):
         email, password = data["EMAIL"], hashData(data["PASSWORD"])
         if mongo.credential_CheckCredentials(email, password):
-            logger.debug("User Exists !!!")
+            # logger.debug("User Exists !!!")
             return jsonify({'message': 'Valid User Credentials'}), 200
 
-        logger.debug("User Not Found !!!")
+        # logger.debug("User Not Found !!!")
         return jsonify({'message': 'Invalid User Credentials'}), 404
 
     return jsonify({'message': 'Not a Valid Request'}), 400
@@ -177,7 +177,7 @@ def credentials_post_request(data):
         # email =  data['EMAIL']
         # password = data['PASSWORD']
         # if mongo.CheckUserExist(email):
-        #     logger.debug("Customer Already Exists !!!")
+        #     # logger.debug("Customer Already Exists !!!")
         #     return jsonify({'message': 'Customer Already Exists'}), 409
         
         # mongo.CreateNewUser(email , password)
@@ -187,10 +187,10 @@ def credentials_post_request(data):
         # cursor.execute("select email from customers")
         # queryResult = cursor.fetchall()
         
-        # logger.debug(queryResult)
-        # logger.debug(credsVal)
+        # # logger.debug(queryResult)
+        # # logger.debug(credsVal)
         # if credsVal in queryResult:
-        #     logger.debug("Customer Already Exists !!!")
+        #     # logger.debug("Customer Already Exists !!!")
         #     return jsonify({'message': 'Customer Already Exists'}), 409
         
         # credsVal = (data['EMAIL'], data['PASSWORD'])
@@ -206,7 +206,7 @@ def credentials_post_request(data):
         password = hashData(password)
 
         if mongo.CheckUserExist(email):
-            logger.debug("Customer Already Exists !!!")
+            # logger.debug("Customer Already Exists !!!")
             return jsonify({'message': 'Customer Already Exists'}), 409
         
         mongo.CreateNewUser(email , password)
@@ -224,7 +224,7 @@ def check_node_callback():
         data = json.loads(message)
         return check_node_get_request(data)
     else:
-        logger.debug("Method not allowed !!!")
+        # logger.debug("Method not allowed !!!")
         return jsonify({'message': 'Method not allowed'}), 405
 
 
@@ -245,7 +245,7 @@ def check_node_get_request(data):
     elif(data['TYPE'] == "USERS"):
         email = data['EMAIL']
         if mongo.CheckUserExist(email):
-            logger.debug("User Exists !!!")
+            # logger.debug("User Exists !!!")
             return jsonify({'message': 'Registered'}), 200
         
         return jsonify({'message': 'Unregistered'}), 200
@@ -270,7 +270,7 @@ def send_OTP_callback():
         data = request.get_json()
         return send_OTP_post_request(data)
     else:
-        logger.debug("Method not allowed !!!")
+        # logger.debug("Method not allowed !!!")
         return jsonify({'message': 'Method not allowed'}), 405
 
 
@@ -326,7 +326,7 @@ def user_earnings_callback():
         data = request.get_json()
         return user_earnings_put_request(data)
     else:
-        logger.debug("Method not allowed !!!")
+        # logger.debug("Method not allowed !!!")
         return jsonify({'message': 'Method not allowed'}), 405
 
 
@@ -340,12 +340,12 @@ def user_earnings_put_request(data):
     earningsPerMinute = getEarningPerMinuteGPUTime(gpuType)
 
     earnings = alterEarningsAccordingToTime(earningsPerMinute , elapsedTimeSeconds , manualStopping)
-    print(f"Earnings Before String it down to 2 decimals : {str(earnings)}")
+    # logger(f"Earnings Before String it down to 2 decimals : {str(earnings)}")
 
     earnings = float(stripEarningsToTwoDecimal(earnings))
-    print(f"Earnings After String it down to 2 decimals : {str(earnings)}")
+    # logger(f"Earnings After String it down to 2 decimals : {str(earnings)}")
 
-    print(type(earnings))
+    # logger(type(earnings))
     
     checkAndUpdateUUIDGpu(email, uuid , gpuType)
     return updateEarningOfUser(email , earnings)
@@ -355,7 +355,7 @@ def stripEarningsToTwoDecimal(earnings):
 
 def checkAndUpdateUUIDGpu(email, UUID , gpuType):
     if mongo.CheckUserExist(email):
-        print("Checking and Inserting GPU !!!")
+        # logger("Checking and Inserting GPU !!!")
         mongo.UEM_UuidGPU_CheckAndInsert(UUID , gpuType)
     else:
         return None
@@ -365,10 +365,11 @@ def getEarningPerMinuteGPUTime(gpuType):
 
 def alterEarningsAccordingToTime(earningsPerMinute , elapsedTimeSeconds , manualStopping):
     if(manualStopping and elapsedTimeSeconds < 3600):
-        logger.debug("Stopped the Script Too Early !!!")
+        # logger.debug("Stopped the Script Too Early !!!")
         return 0
     elif(not manualStopping and elapsedTimeSeconds < 120):
-        print("Script Ran for Less than 2 Mins, So Auto Closing Doesnt Count !!!")
+        pass
+        # logger("Script Ran for Less than 2 Mins, So Auto Closing Doesnt Count !!!")
         
     return earningsPerMinute * (elapsedTimeSeconds / 60)
 
@@ -376,13 +377,13 @@ def updateEarningOfUser(userEmail ,  earningAmount):
     if mongo.CheckUserExist(userEmail) == False:
         return jsonify({'message': 'User Not Found'}), 404
     
-    logger.debug(earningAmount)
+    # logger.debug(earningAmount)
     mongo.credential_IncrementUserTotalEarningsAndBalance(userEmail , earningAmount)
     return jsonify({'message': 'Earnings Updated'}), 200
 
 
 def user_earnings_get_requests(data):
-    logger.debug(data)
+    # logger.debug(data)
     email = data["EMAIL"]
     if mongo.CheckUserExist(email) == False:
         return jsonify({'message': 'User Not Found'}), 404
@@ -399,7 +400,7 @@ def user_info_callback():
         data = json.loads(message)
         return user_info_get_request(data)
     else:
-        logger.debug("Method not allowed !!!")
+        # logger.debug("Method not allowed !!!")
         return jsonify({'message': 'Method not allowed'}), 405
 
 
@@ -427,13 +428,13 @@ def app_session_callback():
         data = request.get_json()
         return app_session_post_request(data)
     else:
-        logger.debug("Method not allowed !!!")
+        # logger.debug("Method not allowed !!!")
         return jsonify({'message': 'Method not allowed'}), 405
     
 
 def app_session_post_request(data):
     email = data['EMAIL']
-    print(email)
+    # logger(email)
     if mongo.CheckUserExist(email) == False:
         return jsonify({'message': 'User Not Found'}), 404
     
@@ -456,7 +457,7 @@ def container_session_callback():
         data = request.get_json()
         return container_session_post_request(data)
     else:
-        logger.debug("Method not allowed !!!")
+        # logger.debug("Method not allowed !!!")
         return jsonify({'message': 'Method not allowed'}), 405
     
 
@@ -483,7 +484,7 @@ def user_uuid_callback():
         data = request.get_json()
         return user_uuid_post_request(data)
     else:
-        logger.debug("Method not allowed !!!")
+        # logger.debug("Method not allowed !!!")
         return jsonify({'message': 'Method not allowed'}), 405
     
 
@@ -504,7 +505,7 @@ def user_withdraw_callback():
         data = request.get_json()
         return user_withdraw_put_request(data)
     else:
-        logger.debug("Method not allowed !!!")
+        # logger.debug("Method not allowed !!!")
         return jsonify({'message': 'Method not allowed'}), 405
 
 
