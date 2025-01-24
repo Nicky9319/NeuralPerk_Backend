@@ -19,3 +19,5 @@ class customerAgent():
     def handleSessionRequests(self , customerRequest):
         print(customerRequest)
         pass
+
+

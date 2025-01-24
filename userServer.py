@@ -51,12 +51,17 @@ class webSocketServer:
     
     def methods(self):
         @self.sio.event
-        async def connect(sid, environ):
+        async def connect(sid, environ , auth=None):
             # self.user_byte_stream_mapping[sid] = bytearray()
             self.socketLock.acquire()
             # await self.sio.emit('message', pickle.dumps({"TYPE" : "RESPONSE" , "DATA" : "CONNECTED" , "TIME" : time.time()}), room=sid)
             self.socketLock.release()
             print(f"A New User with ID {sid} Connected")
+
+
+            print(environ.get('headers'))
+            print(environ)
+            print(auth)
 
             await self.sendMessageToUserManager({"TYPE" : "NEW_USER" , "USER_ID" : sid})
             # await self.publishRedisMsg('CI' , json.dumps({"TYPE" : "MESSAGE_FOR_USER_MANAGER", "DATA" : {"TYPE" : "NEW_USER" , "USER_ID" : sid}}))

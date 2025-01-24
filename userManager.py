@@ -10,6 +10,8 @@ class UserManager:
         self.customerServer_Pipe = None
         self.asyncLoop = None
 
+
+
     async def handleSupervisorRequests(self , pipe , supervisorRequest , supervisorIdentityEmail):
         message = supervisorRequest['TYPE']
         if message == "NEW_SESSION":
@@ -77,7 +79,6 @@ class UserManager:
             print("List of Users Released : " , userIds)
             self.users.extend(userIds)
             print(self.users)
-
 
     async def listenToSupervisorMessages(self , supervisorPipe , supervisorIdentityEmail):
         print("Listening to Supervisor Messages !!!")
@@ -171,13 +172,14 @@ class UserManager:
 
 
 
-
     async def startFunctioning(self , customerServerPipe , userServerPipe):
         self.userServer_Pipe = userServerPipe
         self.customerServer_Pipe = customerServerPipe
         customerServerMessages_Coroutine = asyncio.create_task(self.listenToCustomerServerMessages(customerServerPipe))
         userServerMessages_Coroutine = asyncio.create_task(self.listenToUserServerMessages(userServerPipe))
         await asyncio.gather(customerServerMessages_Coroutine , userServerMessages_Coroutine)
+
+
 
     def Start(self , customerServerPipe , userServerPipe = None):
         #print(serverCommunincationPipe)
