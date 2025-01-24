@@ -42,6 +42,7 @@ class sessionSupervisor():
 
 
 
+
 # Basic Utility Section !!! ---------------------------------------------------------------------------------------------------
 
     def parserUserRequest(self , message):
@@ -57,7 +58,7 @@ class sessionSupervisor():
             print("Total Time Taken : " , curTime - sendTime)
 
             self.gradList_Lock.acquire()
-            
+
             index = self.userList.index(userId)
             self.gradList[index] = mainMessage["DATA"]
             self.accuracyList[index] = mainMessage["ACCURACY"]
@@ -88,6 +89,9 @@ class sessionSupervisor():
             if(msgType == "DISCONNECT"):
                 print("User Disconnected !!! , Message By Session Supervisor")
                 self.handleUserDisconnect(message["USER_ID"])
+            elif(msgType == "ADDITIONAL_USER_LIST"):
+                print("User Added !!! , Message By Session Supervisor")
+                self.handleUserAddition(message["USERS"][0])
             else:
                 pass
 
@@ -132,6 +136,13 @@ class sessionSupervisor():
         print(self.userList)
         if self.jobProfile == "RENDERING":
             self.userDisconnectRender(userId)
+
+    def handleUserAddition(self , userId):
+        print("Handling User Addition !!!")
+        print(self.userList)
+        if self.jobProfile == "RENDERING":
+            self.userAdditionRender(userId)
+        
 
 # Basic Utility Section END !!! ----------------------------------------------------------------------------------------------
 
@@ -305,10 +316,17 @@ class sessionSupervisor():
         return id_to_frames
 
     # Distribute Frames of a list among users and sends that to them
-    def distributeFramesToUsers(self , frameList , number_of_workers):
+    def distributeFramesToUsersAndSend(self , frameList , number_of_workers):
         for worker_number in range(number_of_workers):
             # self.idToFrames[self.userList[worker_number]].extend(frameList[worker_number :: number_of_workers])
             self.addFrameToUser(self.userList[worker_number] , frameList[worker_number :: number_of_workers])
+
+    def distributeFramesToUsers(self , frameList , number_of_workers , overwrite=False):
+        for worker_number in range(number_of_workers):
+            if not overwrite:
+                self.idToFrames[self.userList[worker_number]].extend(frameList[worker_number :: number_of_workers])
+            else:
+                self.idToFrames[self.userList[worker_number]] = frameList[worker_number :: number_of_workers]
 
     # Add a List of Frames to a User and Sends that to them
     def addFrameToUser(self , userId , frameList):
@@ -329,25 +347,45 @@ class sessionSupervisor():
         return frameStatus
 
     # Broadcast the Blend File Among all the Users
-    def sendBlendFileToUser(self , blendFilePath):
+    def sendBlendFileToUsers(self , blendFilePath):
         msg = {"TYPE" : "BLEND_FILE" , "DATA" : blendFilePath, "META_DATA" : "EXTRACT_BLEND_FILE_FROM_PATH"}
         self.broadcast(msg)
     
+    # Sends the Blend File to a Particular User
+    def sendBlendFileToSingleUser(self , userId , blendFilePath):
+        msg = {"TYPE" : "BLEND_FILE" , "DATA" : blendFilePath, "META_DATA" : "EXTRACT_BLEND_FILE_FROM_PATH"}
+        self.sendMessageToUser(userId , msg)
+
     # Sends the Frame List to a particular User
     def sendFramesToUser(self , userId , framesList):
         msg = {"TYPE" : "FRAME_LIST" , "DATA" : framesList}
         self.sendMessageToUser(userId , msg)
     
+    # Sends the Overwrite Frames to a Particular User
+    def sendOverwriteFramesToUser(self , userId , framesList):
+        msg = {"TYPE" : "MESSAGE_FOR_PROCESS_MANAGER" , "DATA" : {"TYPE" : "OVERWRITE_FRAME_LIST", "DATA" : framesList}}
+        self.sendMessageToUser(userId , msg)
+
     # BroadCasts the Respective Frame List to respective Users.
     def broadcastFramesToUsers(self):
         for userId in self.userList:
             self.sendFramesToUser(userId , self.idToFrames[userId])
 
-    # Sends the Message to User to Start the Rendering Process
+    # Broadcasts the Overwrite Frames to Users
+    def broadcastOverwriteFramesToUsers(self):
+        for userId in self.userList:
+            self.sendOverwriteFramesToUser(userId , self.idToFrames[userId])
+
+    # Sends the Message to All Users to Start the Rendering Process
     def initiateRenderProcess(self):
         for userId in self.userList:
             msg = {"TYPE" : "START_RENDERING"}
             self.sendMessageToUser(userId , msg)
+
+    # Sends the Message to a Single User to Start the Rendering Process
+    def initiateRenderProcessForSingleUser(self , userId):
+        msg = {"TYPE" : "START_RENDERING"}
+        self.sendMessageToUser(userId , msg)
 
     # Handles the Case When a User Disconnects and How to React to it
     def userDisconnectRender(self , userId):
@@ -355,7 +393,32 @@ class sessionSupervisor():
         self.userList.remove(userId)
         fiteredFrames = [frame for frame in userFrames if self.frameStatus[frame] == False]
         del self.idToFrames[userId]
-        self.distributeFramesToUsers(fiteredFrames , len(self.userList)) # Distributes and Sends the Data to Users
+        self.distributeFramesToUsersAndSend(fiteredFrames , len(self.userList)) # Distributes and Sends the Data to Users
+
+    # Handles the Case When a User is Added and How to React to it
+    def userAdditionRender(self , userId):
+        self.userList.append(userId)
+        allFrames = []
+        for idFrameMapping in self.idToFrames.keys():
+            allFrames.extend(self.idToFrames[idFrameMapping])
+            self.idToFrames[idFrameMapping] = []
+            print(f"Frames of User {idFrameMapping} : " , self.idToFrames[idFrameMapping])
+        
+        print("All Frames : " , allFrames)
+        self.distributeFramesToUsers(allFrames , len(self.userList) , overwrite=True)
+
+        for idFrameMapping in self.idToFrames.keys():
+            print(f"Frames of User {idFrameMapping} : " , self.idToFrames[idFrameMapping])
+
+        self.sendBlendFileToSingleUser(userId , self.savedBlendFileName)
+        self.sendFramesToUser(userId, self.idToFrames[userId])
+        self.initiateRenderProcessForSingleUser(userId)
+
+        for user in self.userList:
+            if user != userId:
+                self.sendOverwriteFramesToUser(user , self.idToFrames[user])
+
+        
 
     # Saves the Binary Image derived from Binary in Local Directory with it's extension
     def saveImageInDirectory(self, imageBinary , frameNumber , ext = 'png'):
@@ -365,6 +428,16 @@ class sessionSupervisor():
         with open(self.renderedImagesFolder + f"/{frameNumber}.{ext}" , "wb") as file:
             file.write(imageBinary)
 
+    # Checks if the All the frames from all the Worker nodes has been Received, i.e. The Rendering is Completed from Worker Nodes end or Not
+    def checkRenderingProcessCompleted(self):
+        for userId in self.userList:
+            if len(self.idToFrames[userId]) == 0:
+                pass
+            else:
+                return False
+        
+        return True
+
     # Handles What to Do After A User Has Completed Rendering a Frame and Sends it back to Server
     def handleFrameRenderCompletion(self , userId , data):
         print(f"USER {userId} RENDERED FRAME {data['FRAME_NUMBER']}")
@@ -373,9 +446,10 @@ class sessionSupervisor():
         imageExtension = data["IMAGE_EXTENSION"]
         self.saveImageInDirectory(imageBinary , frameNumber , imageExtension)
         self.frameStatus[frameNumber] = True
-        self.idToFrames[userId].remove(frameNumber)
-        self.totalFrame -= 1
-        if self.totalFrame == 0:
+        if frameNumber in self.idToFrames[userId]:
+            self.idToFrames[userId].remove(frameNumber)
+ 
+        if self.checkRenderingProcessCompleted():
             msg = msg = {"TYPE" : "MESSAGE_FOR_PROCESS_MANAGER" , "DATA" : {"TYPE" : "RENDERING_COMPLETE"}}
             self.broadcast(msg)
             self.renderingCompletion.set()
@@ -388,6 +462,9 @@ class sessionSupervisor():
             print("Rendering Process Completed !!!")
             msg = {"TYPE" : "MESSAGE_FOR_PROCESS_MANAGER" , "DATA" : {"TYPE" : "RENDERING_COMPLETE"}}
             self.sendMessageToUser(userId , msg)
+            self.userList.remove(userId)
+            self.idToFrames.pop(userId)
+            self.userManager.send({"TYPE" : "USER_RELEASED" , "USERS" : [userId]})
         else:
             print("Asking User to Send Frames !!!")
             print("Frame List Pending !!!! : " , self.idToFrames[userId])
@@ -402,28 +479,32 @@ class sessionSupervisor():
     # Main Function to Handle the Rendering Process
     def handle_rendering(self , renderingInfo):
         savedFileName = self.saveBlendFileBinary(renderingInfo["DATA"] , self.customerEmail)
+        print(f"Saved Blend File Path : {savedFileName}")
+        self.savedBlendFileName = savedFileName
         last_frame , first_frame = self.getLastAndFirstFrame(savedFileName)
         print(last_frame , first_frame)
         first_frame = int(first_frame)
         last_frame = int(last_frame)
-        # first_frame = 2
-        # last_frame = 15
+
+
         print(type(first_frame) , first_frame , type(last_frame) , last_frame)
         number_of_workers = len(self.userList)
+        
         print(f"Number of Worker Nodes : " , number_of_workers)
         self.idToFrames = self.assignFramesToUsers(first_frame , last_frame , number_of_workers)
         self.frameStatus = self.getFrameStatusDict(first_frame , last_frame)
-        self.totalFrame = len(self.frameStatus.keys())
         # print(self.userList)
         print(f"Frame Division to Each Worker : " , self.idToFrames)
         # print(f"Frame Status Dict : {self.frameStatus}")
 
-        self.sendBlendFileToUser(savedFileName)                                             # Send the Blend file to users
+        self.sendBlendFileToUsers(savedFileName)                                             # Send the Blend file to users
         self.broadcastFramesToUsers()                                                       # Sends the relevant List of frames to respectives users
         self.initiateRenderProcess()                                                        # Directs the User to Start the Rendering Process
         print("Workers Started Rendering the Scenes")
 
+
         self.renderingCompletion.wait()
+        self.userManager.send({"TYPE" : "USER_RELEASED" , "USERS" : self.userList})
         self.reconcileFrameToVideo()
         print("Rendering Process Completed !!!")
         self.renderingCompletion.clear()
@@ -455,7 +536,8 @@ class sessionSupervisor():
 
         while True:
             if(len(self.userList) == 0):
-                jsMsg = {"TYPE" : "NEW_SESSION" , "USERS" : "ALL"}
+                # jsMsg = {"TYPE" : "NEW_SESSION" , "USERS" : "ALL"}
+                jsMsg = {"TYPE" : "NEW_SESSION" , "USERS" : 1}
                 self.userManager.send(jsMsg)
                 response = self.userManager.recv()
                 print(response)

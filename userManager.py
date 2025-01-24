@@ -40,6 +40,34 @@ class UserManager:
                 self.users = self.users[userNumber:]
 
             print("Remaining Users : " , self.users)
+        elif message == "ADDITIONAL_USERS":
+            print("Additional Users Request !!!")
+            userNumber = supervisorRequest['USERS']
+            if userNumber == "ALL":
+                if len(self.users) == 0:
+                    jsMsg = {"TYPE" : "ADDITIONAL_USER_LIST" , "USERS" : [] , "NOTICE" : "NOT_SUFFICIENT"}
+                    pipe.send({"TYPE" : "USER_MANAGER_MESSAGE" , "DATA" : jsMsg})
+                    return
+                
+                jsMsg = {"TYPE" : "ADDITIONAL_USER_LIST" , "USERS" : self.users[:] , "NOTICE" : "SUFFICIENT"}
+                for user in self.users[:]:
+                    self.userToCustomerEmailMapping[user] = supervisorIdentityEmail
+                pipe.send({"TYPE" : "USER_MANAGER_MESSAGE" , "DATA" : jsMsg})
+                self.users = []
+            elif len(self.users) < userNumber:
+                jsMsg = {"TYPE" : "ADDITIONAL_USER_LIST" , "USERS" : self.users , "NOTICE" : "NOT_SUFFICIENT"}
+                for user in self.users:
+                    self.userToCustomerEmailMapping[user] = supervisorIdentityEmail
+                pipe.send({"TYPE" : "USER_MANAGER_MESSAGE" , "DATA" : jsMsg})
+                self.users = []
+            else:
+                jsMsg = {"TYPE" : "ADDITIONAL_USER_LIST" , "USERS" : self.users[:userNumber] , "NOTICE" : "SUFFICIENT"}
+                for user in self.users[:userNumber]:
+                    self.userToCustomerEmailMapping[user] = supervisorIdentityEmail
+                pipe.send({"TYPE" : "USER_MANAGER_MESSAGE" , "DATA" : jsMsg})
+                self.users = self.users[userNumber:]
+
+            print("Remaining Users : " , self.users)
         elif message == "SEND_MESSAGE_TO_USER":
             print("Sending Message to User Server For Further Execution of The Request SEND_MESSAGE_TO_USER!!!")
             self.userServer_Pipe.send(supervisorRequest)

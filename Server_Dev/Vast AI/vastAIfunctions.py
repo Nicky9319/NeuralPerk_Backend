@@ -70,6 +70,17 @@ class VastAIManager():
         
         return False
 
+    def checkInstanceAvailableForUse(self, instanceID):
+        command = f'search offers "ask_contract_id == {instanceID}"'
+        finalComamnd = self.getFinalCommand(command)
+
+        response = subprocess.run(finalComamnd, capture_output=True, text=True)
+        result = response.stdout
+
+        result = str(result)
+
+        return len(result.split('\n')) > 2
+        
 
 
 
@@ -79,12 +90,7 @@ filters = ["cuda_vers >= 12.5","num_gpus=1","gpu_name=RTX_3080","gpu_ram>=8"]
 # output = vastAiManager.listInstances(filter=filters)
 # output = vastAiManager.listInstances()
 
-spawnInstance = vastAiManager.createInstance("16508165")
-
-time.sleep(60)
-
-destroyInstance = vastAiManager.destroyInstance("16508165")
-print(destroyInstance)
+print(vastAiManager.checkInstanceAvailableForUse("13109400"))
 
 
 
