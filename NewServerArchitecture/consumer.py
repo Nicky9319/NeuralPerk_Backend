@@ -29,8 +29,9 @@ def start_consuming(exchange_name, queue_name):
 # start_consuming('my_exchange', 'my_queue')
 
 
-exchange_name = "SESSION_SUPERVISOR_EXCHANGE"
-id = "b3ccdeffa8e64d7dabe05bab1fff1bc1"
-queue_name = f"SSE_{id}_CA"
+exchange_name = "COMMUNICATION_INTERFACE_EXCHANGE"
+id = "CIE_USER_WS_SERVER"
+# queue_name = f"SSE_{id}_CA"
+queue_name = "CIE_USER_WS_SERVER"
 
 start_consuming(exchange_name, queue_name)

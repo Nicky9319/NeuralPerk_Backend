@@ -5,7 +5,7 @@ import threading
 
 import json
 
-from fastapi import Request
+from fastapi import Request,  Response
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "../ServiceTemplates/Basic"))
 
@@ -34,7 +34,7 @@ class UserManagerService:
         async def handlePostSessionSupervisor(request : Request):
             data = await request.json()
             response = await self.handleSupervisorMessages(data , response=True)
-            return response
+            return Response(content=json.dumps(response), media_type="application/json")
 
         @self.httpServer.app.get('/CustomerServer')
         async def handleGetCustomerServer():
@@ -57,6 +57,7 @@ class UserManagerService:
     async def handleSupervisorMessages(self, supervisorMessage, response=False):
         msgType = supervisorMessage['TYPE']
         msgData = supervisorMessage['DATA']
+        responseMsg = None
         if msgType == "NEW_SESSION":
             pass
         elif msgType == "ADDITIONAL_USERS":
@@ -69,11 +70,14 @@ class UserManagerService:
             sessionId = msgData["SESSION_SUPERVISOR_ID"]
             self.userToSupervisorIdMapping[sessionId] = []
             self.supervisorToRoutingKeyMapping[sessionId] = f"SSE_{sessionId}_UM"
-            if response:
-                return {"STATUS": "SUCCESS"}
+            responseMsg = {"STATUS": "SUCCESS"}
         else:
             print("Unknown Message Type")
             print("Received Message: ", supervisorMessage)
+            responseMsg = {"STATUS" : "FAILED" , "ERROR" : "Unknown message type"}
+
+        if response:
+            return responseMsg
 
     async def callbackSupervisorMessages(self, message):
         DecodedMessage = message.body.decode()
@@ -99,6 +103,7 @@ class UserManagerService:
     async def handleUserServerMessages(self, userServerMessage, response=False):
         msgType = userServerMessage['TYPE']
         msgData = userServerMessage['DATA']
+        responseMsg = None
         if msgType == "USER_MESSAGE":
             userId = msgData["USER_ID"]
             userMessage = msgData["MESSAGE"]
@@ -131,6 +136,10 @@ class UserManagerService:
         else:
             print("Unknown Message Type")
             print("Received Message: ", userServerMessage)
+            responseMsg = {"STATUS" : "FAILED" , "ERROR" : "Unknown message type"}
+
+        if response:
+            return responseMsg
 
     async def callbackUserServerMessages(self, message):
         DecodedMessage = message.body.decode()

@@ -16,8 +16,8 @@ def publishData(exchange_name, routing_key, message):
     # Close the connection
     connection.close()
 
-exchange_name = "USER_MANAGER_EXCHANGE"
-routing_key = "UME_SUPERVISOR"
+exchange_name = "USER_HTTP_SERVER_EXCHANGE"
+routing_key = "UHTTPSE_CI"
 message = {"TYPE" : "MESSAGE_TEST" , "DATA" : "NONE"}
 
 publishData(exchange_name, routing_key, json.dumps(message))

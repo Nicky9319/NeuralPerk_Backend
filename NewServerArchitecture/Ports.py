@@ -34,9 +34,9 @@ def list_working_ports():
 
 
 
-ports_to_stop = [x for x in range(15000,15025)]  
-for port in ports_to_stop:
-    stop_service_on_port(port)
+# ports_to_stop = [x for x in range(15000,15025)]  
+# for port in ports_to_stop:
+#     stop_service_on_port(port)
 
 working_ports = list_working_ports()
 print("Working Ports: ", working_ports)

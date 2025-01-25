@@ -13,7 +13,7 @@ import time
 
 
 class MessageQueueListener:
-    def __init__(self, ConnectionURL, ExchangeName=""):
+    def __init__(self, ConnectionURL, ExchangeName="he"):
         self.ExchangeName = ExchangeName
         self.ConnectionURL = ConnectionURL
         self.Connection = None
@@ -25,10 +25,12 @@ class MessageQueueListener:
     async def InitializeConnection(self):
         self.Connection = await aio_pika.connect_robust(self.ConnectionURL)
         self.Channel = await self.Connection.channel()
+        await self.Channel.declare_exchange(self.ExchangeName, aio_pika.ExchangeType.DIRECT)
 
-    async def BoundeQueueToExchange(self):
+    async def BoundQueueToExchange(self):
         for queues in self.QueueList:
-            self.Channel.queue_bind(exchange=self.ExchangeName, queue=queues)
+            # self.Channel.queue_bind(exchange=self.ExchangeName, queue=queues)
+            await queues.bind(self.ExchangeName , routing_key=queues.name)
         
     async def AddNewQueue(self, QueueName):
         queue = await self.Channel.declare_queue(QueueName, durable=True)
@@ -70,7 +72,7 @@ class WebSocketServer:
     def __init__(self, host, port):
         self.host = host
         self.port = port
-        self.sio = socketio.AsyncServer()
+        self.sio = socketio.AsyncServer(async_mode='aiohttp',ping_timeout=60, ping_interval=25 , max_http_buffer_size=1024*1024*100)
         self.app = web.Application()
         self.sio.attach(self.app)
 
@@ -99,10 +101,12 @@ class Service:
 
 
     async def ConfigureHTTPserverRoutes(self):
-        @self.httpServer.app.get("/")
-        async def read_root():
-            print("Running Through Someone Else")
-            return {"message": "Hello World"}
+        # @self.httpServer.app.get("/")
+        # async def read_root():
+        #     print("Running Through Someone Else")
+        #     return {"message": "Hello World"}
+
+        pass
     
     async def ConfigureWSserverMethods(self):
         @self.wsServer.sio.event
@@ -123,6 +127,7 @@ class Service:
         await self.messageQueue.InitializeConnection()
         await self.messageQueue.AddQueueAndMapToCallback("queue1", self.fun1)
         await self.messageQueue.AddQueueAndMapToCallback("queue2", self.fun2)
+        await self.messageQueue.BoundQueueToExchange()
         await self.messageQueue.StartListeningToQueue()
 
         await self.ConfigureWSserverMethods()
@@ -135,5 +140,5 @@ async def start_service():
     service = Service('127.0.0.1',6000, '127.0.0.1', 8000)
     await service.startService()
 
-# if __name__ == "__main__":
-#     asyncio.run(start_service())
+if __name__ == "__main__":
+    asyncio.run(start_service())

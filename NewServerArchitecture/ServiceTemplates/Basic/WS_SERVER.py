@@ -41,8 +41,6 @@ class WebSocketServer:
         site = web.TCPSite(runner, host=self.host, port=self.port)
         await site.start()
         print(f"Server started at http://{self.host}:{self.port}")
-        await asyncio.Event().wait()
-
 
 async def main():
     server = MainServer('localhost', 6000)
