@@ -18,10 +18,11 @@ class MessageQueue:
     async def InitializeConnection(self):
         self.Connection = await aio_pika.connect_robust(self.ConnectionURL)
         self.Channel = await self.Connection.channel()
+        await self.Channel.declare_exchange(self.ExchangeName, aio_pika.ExchangeType.DIRECT)
 
-    async def BoundeQueueToExchange(self):
+    async def BoundQueueToExchange(self):
         for queues in self.QueueList:
-            self.Channel.queue_bind(exchange=self.ExchangeName, queue=queues)
+            await queues.bind(self.ExchangeName , routing_key=queues.name)
         
     async def AddNewQueue(self, QueueName):
         queue = await self.Channel.declare_queue(QueueName, durable=True)

@@ -63,6 +63,7 @@ class customerAgent():
 
     def SpawnSessionSupervisorService(self):
         portToRunService = self.FindFreePort()
+        print("Running on Port : " , portToRunService)
         subprocess.Popen(["python3" , "service_SessionSupervisor/sessionSupervisor.py" , "--host", "127.0.0.1" , "--port", f"{portToRunService}"],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -83,7 +84,8 @@ class customerAgent():
         sessionSupervisorQueue =  await self.messageQueue.Channel.declare_queue(f"SSE_{sessionId}_CA" , auto_delete=True)
         await sessionSupervisorQueue.bind("SESSION_SUPERVISOR_EXCHANGE" , routing_key=f"SSE_{sessionId}_CA")
 
-        messageToPublish = {"TYPE" : "SESSION_INIT_DATA" , "DATA" : self.sessionData}
+        sessionInfo = {"SESSION_DATA" : self.sessionData , "SESSION_ID" : sessionId}
+        messageToPublish = {"TYPE" : "SESSION_INIT_DATA" , "DATA" : sessionInfo}
         messageToPublish = json.dumps(messageToPublish)
 
         await self.messageQueue.PublishMessage("SESSION_SUPERVISOR_EXCHANGE" , f"SSE_{sessionId}_CA" , messageToPublish)

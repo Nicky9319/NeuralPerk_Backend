@@ -1,4 +1,5 @@
 import pika
+import json
 
 def publishData(exchange_name, routing_key, message):
     # Establish a connection to RabbitMQ server
@@ -15,8 +16,8 @@ def publishData(exchange_name, routing_key, message):
     # Close the connection
     connection.close()
 
-exchange_name = "SessionSupervisorExchange"
-routing_key = "SSE_1234_CA"
-message = "Hello, World!"
+exchange_name = "USER_MANAGER_EXCHANGE"
+routing_key = "UME_SUPERVISOR"
+message = {"TYPE" : "MESSAGE_TEST" , "DATA" : "NONE"}
 
-publishData(exchange_name, routing_key, message)
+publishData(exchange_name, routing_key, json.dumps(message))
