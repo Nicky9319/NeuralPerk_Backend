@@ -9,3 +9,4 @@ redis
 fastapi
 uvicorn
 aiohttp
+aio_pika
