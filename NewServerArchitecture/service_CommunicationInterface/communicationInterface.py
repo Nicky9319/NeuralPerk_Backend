@@ -20,7 +20,8 @@ class CommunicationInterfaceService():
     def __init__(self,httpServerHost, httpServerPort):
         self.messageQueue = MessageQueue("amqp://guest:guest@localhost/" , "COMMUNICATION_INTERFACE_EXCHANGE")
         self.httpServer = HTTPServer(httpServerHost, httpServerPort)
-    
+
+        self.CateringRequestLock = threading.Lock()
 
     async def sendMessageToUserManager(self, userManagerMessage):
         exchangeName = "USER_MANAGER_EXCHANGE"
@@ -68,7 +69,6 @@ class CommunicationInterfaceService():
         msgType = UserHttpServerMessage['TYPE']
         msgData = UserHttpServerMessage['DATA']
         responseMsg = None
-        msgData = UserWsServerMessage['DATA']
         if msgType == "MESSAGE_FOR_USER_MANAGER":
             print("User Http Server Asked to Forward Message to User Manager")
             await self.sendMessageToUserManager(msgData)
@@ -85,7 +85,7 @@ class CommunicationInterfaceService():
         DecodedMessage = message.body.decode()
         DecodedMessage = json.loads(DecodedMessage)
         self.CateringRequestLock.acquire()
-        await self.handleSupervisorMessages(DecodedMessage)
+        await self.handleUserHttpServerMessages(DecodedMessage)
         self.CateringRequestLock.release()
         
 
@@ -109,7 +109,7 @@ class CommunicationInterfaceService():
         DecodedMessage = message.body.decode()
         DecodedMessage = json.loads(DecodedMessage)
         self.CateringRequestLock.acquire()
-        await self.handleCustomerServerMessages(DecodedMessage)
+        await self.handleUserWsServerMessages(DecodedMessage)
         self.CateringRequestLock.release()
 
 
@@ -134,7 +134,7 @@ class CommunicationInterfaceService():
         DecodedMessage = message.body.decode()
         DecodedMessage = json.loads(DecodedMessage)
         self.CateringRequestLock.acquire()
-        await self.handleUserServerMessages(DecodedMessage)
+        await self.handleUserManagerMessages(DecodedMessage)
         self.CateringRequestLock.release()
 
 
@@ -144,7 +144,7 @@ class CommunicationInterfaceService():
         await self.messageQueue.AddQueueAndMapToCallback("CIE_USER_MANAGER", self.callbackUserManagerMessages)
         await self.messageQueue.AddQueueAndMapToCallback("CIE_USER_HTTP_SERVER", self.callbackUserHttpServerMessages)
         await self.messageQueue.AddQueueAndMapToCallback("CIE_USER_WS_SERVER", self.callbackUserWsServerMessages)
-        await self.messageQueue.BoundeQueueToExchange()
+        await self.messageQueue.BoundQueueToExchange()
         await self.messageQueue.StartListeningToQueue()
 
         await self.ConfigureHttpRoutes()
