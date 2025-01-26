@@ -6,6 +6,7 @@ import threading
 import json
 
 from fastapi import Request,  Response
+from fastapi.responses import JSONResponse
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "../ServiceTemplates/Basic"))
 

@@ -39,10 +39,13 @@ class MessageQueue:
         for queue in self.QueueList:
             await queue.consume(self.QueueToCallbackMapping[queue.name])
 
-    async def PublishMessage(self, exchangeName , routingKey, message):
+    async def PublishMessage(self, exchangeName , routingKey, message, headers=None):
         exchange = await self.Channel.declare_exchange(exchangeName)
+
+        
+
         await exchange.publish(
-            aio_pika.Message(body=message.encode()),
+            aio_pika.Message(body=message.encode(),headers=headers),
             routing_key=routingKey
         )
 

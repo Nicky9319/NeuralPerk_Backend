@@ -115,7 +115,7 @@ class sessionSupervisor():
                     pass
 
             time.sleep(1)
-  
+
     def broadcast(self , message , inBytes = False):
         print("broadcasting the Message to All Relevant Users !!!")
         print(self.userList)
@@ -511,7 +511,6 @@ class sessionSupervisor():
         # self.renderingCompletion.clear(self.customerEmail)
 
 # Rendering Section END !!! --------------------------------------------------------------------------------------------------
-
 
 
 

@@ -1,37 +1,37 @@
-import pika
+import aio_pika
+import asyncio
 
-def start_consuming(exchange_name, queue_name):
+async def callback(message: aio_pika.IncomingMessage):
+    async with message.process():
+        print(f"Headers: {message.headers}")
+        print(f"Received message: {message.body.decode()}")
+
+async def start_consuming(exchange_name, queue_name):
     # Establish a connection to RabbitMQ server
-    connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
-    channel = connection.channel()
+    connection = await aio_pika.connect_robust("amqp://guest:guest@localhost/")
+    async with connection:
+        channel = await connection.channel()
 
-    # Declare the exchange
-    channel.exchange_declare(exchange=exchange_name, exchange_type='direct')
+        # Declare the exchange
+        await channel.declare_exchange(exchange_name, aio_pika.ExchangeType.DIRECT)
 
-    # Declare the queue
-    queueRef = channel.queue_declare(queue=queue_name , auto_delete=True)
+        # Declare the queue
+        queue = await channel.declare_queue(queue_name, auto_delete=True)
 
-    # Bind the queue to the exchange
-    channel.queue_bind(exchange=exchange_name, queue=queue_name, routing_key=queue_name)
+        # Bind the queue to the exchange
+        await queue.bind(exchange_name, routing_key=queue_name)
 
+        # Start consuming messages
+        await queue.consume(callback, no_ack=False)
 
-    # Define a callback function to handle messages
-    def callback(ch, method, properties, body):
-        print(f"Received message: {body}")
-
-    # Start consuming messages
-    channel.basic_consume(queue=queue_name, on_message_callback=callback, auto_ack=True)
-
-    print(f"Waiting for messages in {queue_name}. To exit press CTRL+C")
-    channel.start_consuming()
+        print(f"Waiting for messages in {queue_name}. To exit press CTRL+C")
+        await asyncio.Future()  # Run forever
 
 # Example usage
-# start_consuming('my_exchange', 'my_queue')
+async def main():
+    exchange_name = "USER_MANAGER_EXCHANGE"
+    queue_name = "UME_SUPERVISOR"
+    await start_consuming(exchange_name, queue_name)
 
-
-exchange_name = "COMMUNICATION_INTERFACE_EXCHANGE"
-id = "CIE_USER_WS_SERVER"
-# queue_name = f"SSE_{id}_CA"
-queue_name = "CIE_USER_WS_SERVER"
-
-start_consuming(exchange_name, queue_name)
+if __name__ == "__main__":
+    asyncio.run(main())
