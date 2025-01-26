@@ -39,10 +39,10 @@ class customerAgent():
             if self.CheckPortFree(portNumber):
                 return portNumber
 
-    def SpawnSessionSupervisorService(self):
+    def SpawnSessionSupervisorService(self, sessionId):
         portToRunService = self.FindFreePort()
         print("Running on Port : " , portToRunService)
-        subprocess.Popen(["python3" , "service_SessionSupervisor/sessionSupervisor.py" , "--host", "127.0.0.1" , "--port", f"{portToRunService}"],
+        subprocess.Popen(["python3" , "service_SessionSupervisor/sessionSupervisor.py" , "--host", "127.0.0.1" , "--port", f"{portToRunService}" , "--id" , f"{sessionId}"],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             preexec_fn=os.setpgrp
@@ -68,7 +68,7 @@ class customerAgent():
 
         await self.messageQueue.PublishMessage("SESSION_SUPERVISOR_EXCHANGE" , f"SSE_{sessionId}_CA" , messageToPublish)
 
-        self.SpawnSessionSupervisorService()
+        self.SpawnSessionSupervisorService(sessionId)
 
     async def HandleSessionRequests(self , customerRequest):
         pass
