@@ -16,7 +16,7 @@ from MESSAGE_QUEUE import MessageQueue
 class UserManagerService:
     def __init__(self, httpServerHost, httpServerPort):
         self.messageQueue = MessageQueue("amqp://guest:guest@localhost/" , "USER_MANAGER_EXCHANGE")
-        self.httpServer = HTTPServer(httpServerHost, httpServerPort)
+        self.apiServer = HTTPServer(httpServerHost, httpServerPort)
 
         self.users = []
         self.userToSupervisorIdMapping = {} # Email Address of Customer Linked to the User associated with it
@@ -25,30 +25,30 @@ class UserManagerService:
         self.CateringRequestLock = threading.Lock()
         
 
-    async def ConfigureHttpRoutes(self):
-        @self.httpServer.app.get('/SessionSupervisor')
+    async def ConfigureApiRoutes(self):
+        @self.apiServer.app.get('/SessionSupervisor')
         async def handleGetSessionSupervisor():
             pass
         
-        @self.httpServer.app.post('/SessionSupervisor/NewSession')
+        @self.apiServer.app.post('/SessionSupervisor/NewSession')
         async def handlePostSessionSupervisor(request : Request):
             data = await request.json()
             response = await self.handleSupervisorMessages(data , response=True)
             return Response(content=json.dumps(response), media_type="application/json")
 
-        @self.httpServer.app.get('/CustomerServer')
+        @self.apiServer.app.get('/CustomerServer')
         async def handleGetCustomerServer():
             pass
 
-        @self.httpServer.app.post('/CustomerServer')
+        @self.apiServer.app.post('/CustomerServer')
         async def handlePostCustomerServer():
             pass
 
-        @self.httpServer.app.get('/UserServer')
+        @self.apiServer.app.get('/UserServer')
         async def handleGetUserServer():
             pass
 
-        @self.httpServer.app.post('/UserServer')
+        @self.apiServer.app.post('/UserServer')
         async def handlePostUserServer():
             pass
 
@@ -157,8 +157,8 @@ class UserManagerService:
         await self.messageQueue.BoundQueueToExchange()
         await self.messageQueue.StartListeningToQueue()
 
-        await self.ConfigureHttpRoutes()
-        await self.httpServer.run_app()
+        await self.ConfigureApiRoutes()
+        await self.apiServer.run_app()
 
 
 

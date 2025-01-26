@@ -19,9 +19,22 @@ from MESSAGE_QUEUE import MessageQueue
 class CommunicationInterfaceService():
     def __init__(self,httpServerHost, httpServerPort):
         self.messageQueue = MessageQueue("amqp://guest:guest@localhost/" , "COMMUNICATION_INTERFACE_EXCHANGE")
-        self.httpServer = HTTPServer(httpServerHost, httpServerPort)
+        self.apiServer = HTTPServer(httpServerHost, httpServerPort)
 
         self.CateringRequestLock = threading.Lock()
+
+
+
+    async def getServiceURL(self, serviceName):
+        servicePortMapping = json.load(open("ServiceURLMapping.json"))
+        return servicePortMapping[serviceName]
+
+    async def ConfigureApiRoutes(self):
+        pass
+
+
+
+
 
     async def sendMessageToUserManager(self, userManagerMessage):
         exchangeName = "USER_MANAGER_EXCHANGE"
@@ -56,13 +69,31 @@ class CommunicationInterfaceService():
             await self.SendMessageToWsServer(messageToSend)
 
             
-    async def getServiceURL(self, serviceName):
-        servicePortMapping = json.load(open("ServiceURLMapping.json"))
-        return servicePortMapping[serviceName]
 
+    
+    async def handleUserManagerMessages(self, userManagerMessage, response=False):
+        msgType = userManagerMessage['TYPE']
+        msgData = userManagerMessage['DATA']
+        responseMsg = None
+        if msgType == "SEND_MESSAGE_TO_USER":
+            userId = msgData["USER_ID"]
+            messageForUser = msgData["DATA"]
+            await self.sendMessageToUser(userId, messageForUser)
+        else:
+            print("Unknown Message Type")
+            print("Received Message: ", userManagerMessage)
+            responseMsg = {"STATUS" : "FAILED" , "ERROR" : "Unknown message type"}
 
-    async def ConfigureHttpRoutes(self):
-        pass
+        if response:
+            return responseMsg
+
+    async def callbackUserManagerMessages(self, message):
+        DecodedMessage = message.body.decode()
+        DecodedMessage = json.loads(DecodedMessage)
+        self.CateringRequestLock.acquire()
+        await self.handleUserManagerMessages(DecodedMessage)
+        self.CateringRequestLock.release()
+
 
 
     async def handleUserHttpServerMessages(self, UserHttpServerMessage, response=False):
@@ -114,31 +145,6 @@ class CommunicationInterfaceService():
 
 
 
-    async def handleUserManagerMessages(self, userManagerMessage, response=False):
-        msgType = userManagerMessage['TYPE']
-        msgData = userManagerMessage['DATA']
-        responseMsg = None
-        if msgType == "SEND_MESSAGE_TO_USER":
-            userId = msgData["USER_ID"]
-            messageForUser = msgData["DATA"]
-            await self.sendMessageToUser(userId, messageForUser)
-        else:
-            print("Unknown Message Type")
-            print("Received Message: ", userManagerMessage)
-            responseMsg = {"STATUS" : "FAILED" , "ERROR" : "Unknown message type"}
-
-        if response:
-            return responseMsg
-
-    async def callbackUserManagerMessages(self, message):
-        DecodedMessage = message.body.decode()
-        DecodedMessage = json.loads(DecodedMessage)
-        self.CateringRequestLock.acquire()
-        await self.handleUserManagerMessages(DecodedMessage)
-        self.CateringRequestLock.release()
-
-
-
     async def startService(self):
         await self.messageQueue.InitializeConnection()
         await self.messageQueue.AddQueueAndMapToCallback("CIE_USER_MANAGER", self.callbackUserManagerMessages)
@@ -147,8 +153,8 @@ class CommunicationInterfaceService():
         await self.messageQueue.BoundQueueToExchange()
         await self.messageQueue.StartListeningToQueue()
 
-        await self.ConfigureHttpRoutes()
-        await self.httpServer.run_app()
+        await self.ConfigureApiRoutes()
+        await self.apiServer.run_app()
 
 
 async def start_service():

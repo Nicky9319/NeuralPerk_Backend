@@ -19,7 +19,7 @@ from WS_SERVER import WebSocketServer
 class userWsServerService:
     def __init__(self, wsServerHost, wsServerPort, httpServerHost, httpServerPort):
         self.messageQueue = MessageQueue("amqp://guest:guest@localhost/" , "USER_WS_SERVER_EXCHANGE")
-        self.httpServer = HTTPServer(httpServerHost, httpServerPort)
+        self.apiServer = HTTPServer(httpServerHost, httpServerPort)
 
         self.wsServer = WebSocketServer(wsServerHost, wsServerPort)
         self.wsServer.sio = socketio.AsyncServer(async_mode='aiohttp',ping_timeout=60, ping_interval=25 , max_http_buffer_size=1024*1024*100)
@@ -31,7 +31,7 @@ class userWsServerService:
         self.clients = {}
 
 
-    async def ConfigureHttpRoutes(self):
+    async def ConfigureApiRoutes(self):
         pass
         
 
@@ -108,8 +108,8 @@ class userWsServerService:
         await self.ConfigureWsMethods()
         await self.wsServer.start()
 
-        await self.ConfigureHttpRoutes()
-        await self.httpServer.run_app()
+        await self.ConfigureApiRoutes()
+        await self.apiServer.run_app()
 
 
 async def start_service():
