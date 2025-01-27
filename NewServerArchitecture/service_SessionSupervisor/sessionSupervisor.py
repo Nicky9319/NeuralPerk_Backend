@@ -1,4 +1,3 @@
-import socketserver
 import argparse
 
 import asyncio
@@ -9,14 +8,24 @@ import os
 import threading
 
 import json
-
 import requests
-
 import datetime
-
 import subprocess
 
+
+
+import aio_pika
+
 from fastapi.responses import JSONResponse
+
+
+
+import logging
+
+
+import pickle
+
+
 
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "../ServiceTemplates/Basic"))
@@ -401,20 +410,20 @@ class renderingSupervisor:
 
 
 
-
     # Initial Setup for the Rendering Process
     async def RenderingProcessInititalSetup(self):
         while True:
             if len(self.userList) == 0:
                 userManagerServiceURL = await self.getServiceURL("USER_MANAGER")
-                mainMessage = {"USER_COUNT" : 1}
+                # mainMessage = {"USER_COUNT" : 1}
+                mainMessage = {"USER_COUNT" : "ALL"}
                 messageToSend = {"TYPE" : "NEW_SESSION" , "DATA" : mainMessage}
                 messageInJson = json.dumps(messageToSend)
                 response = requests.post(f"http://{userManagerServiceURL}/SessionSupervisor/NewSession" , json=messageInJson)
 
                 if response.status_code == 200:
                     data = await requests.json()
-                    self.userList = data['USER_ID']
+                    self.userList = data['LIST_USER_ID']
 
                     if data["NOTICE"] == "NOT_SUFFICIENT":
                         print("Not Sufficent Users to Start the Rendering Process")
@@ -443,6 +452,10 @@ class sessionSupervisorService:
 
         self.supervisor = None
 
+        # logging.basicConfig(filename = f"Logging/ss.log" ,level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+        # self.logger = logging.getLogger(__name__)
+
+
         self.CateringRequestLock = threading.Lock()
     
     async def ConfigureApiRoutes(self):
@@ -451,7 +464,7 @@ class sessionSupervisorService:
 
 
     async def ManageRenderingProcess(self, renderingInfo):
-        self.supervisor = renderingSupervisor(self.renderingComplete)
+        self.supervisor = renderingSupervisor(self.renderingComplete, self.messageQueue, self.ID)
         await self.supervisor.RenderingProcessInititalSetup()
 
         self.savedBlendFileName = await self.supervisor.saveBlendFileBinary(renderingInfo['DATA_BINARY_BLENDFILE'] , self.customerEmail)
@@ -508,8 +521,22 @@ class sessionSupervisorService:
             return responseMsg
                 
     async def callbackCustomerAgentMessages(self, message):
-        DecodedMessage = message.body.decode()
-        DecodedMessage = json.loads(DecodedMessage)
+        Headers = message.headers
+        print(Headers)
+
+        DecodedMessage = None
+
+        if "DATA_FORMAT" in Headers:
+            if Headers["DATA_FORMAT"] == "BYTES":
+                DecodedMessage = pickle.loads(message.body)
+            else:
+                DecodedMessage = message.body.decode()
+        else:
+            DecodedMessage = json.loads(DecodedMessage)
+
+
+        print(DecodedMessage["DATA"].keys())
+
         self.CateringRequestLock.acquire()
         await self.handleCustomerAgentMessages(DecodedMessage)
         self.CateringRequestLock.release()
@@ -542,12 +569,30 @@ class sessionSupervisorService:
 
 
 
+    async def InformUserManagerAboutSessionInitialization(self):
+        exchangeName = "USER_MANAGER_EXCHANGE"
+        routingKey = "UME_SESSION_SUPERVISOR"
+        
+        mainMessage = None
+        messageToSend = {"TYPE" : "INITIALIZE_SESSION" , "DATA" : mainMessage}
+        messageInJson = json.dumps(messageToSend)
+
+        headersToInclude = {"SESSION_SUPERVISOR_ID": self.ID}
+
+        await self.messageQueue.PublishMessage(exchangeName, routingKey, messageInJson, headersToInclude)
+
     async def start_server(self):
-        await self.messageQueue.InitializeMessageQueue()
-        await self.messageQueue.AddQueueAndMapToCallback(f"SSE_{self.ID}_CA", self.callbackCustomerAgentMessages)
+        await self.messageQueue.InitializeConnection()
+
+        # Sending Information To User Manager that Session has been Initialized
+        await self.InformUserManagerAboutSessionInitialization()
+
+        await self.messageQueue.AddQueueAndMapToCallback(f"SSE_{self.ID}_CA", self.callbackCustomerAgentMessages, auto_delete=True)
         await self.messageQueue.AddQueueAndMapToCallback(f"SSE_{self.ID}_UM", self.callbackUserManagerMessages)
         await self.messageQueue.BoundQueueToExchange()
         await self.messageQueue.StartListeningToQueue()
+
+        # self.logger.info("All Initiate Configurations Done")
 
         await self.ConfigureApiRoutes()
         await self.apiServer.run_app()
@@ -555,16 +600,16 @@ class sessionSupervisorService:
 
 
 async def start_service():
+
     parser = argparse.ArgumentParser(description='Start a simple HTTP server.')
     parser.add_argument('--host', type=str, default='localhost', help='Hostname to listen on')
     parser.add_argument('--port', type=int, default=15000, help='Port to listen on')
     parser.add_argument('--id', type=str, default=None, help='Id of the Session Supervisor')
     args = parser.parse_args()
 
-    print(args)
 
-    server = sessionSupervisorService(host=args.host, port=args.port , supervisorID=args.id)
-    server.start_server()
+    server = sessionSupervisorService(httpServerHost=args.host, httpServerPort=args.port , supervisorID=args.id)
+    await server.start_server()
 
 if __name__ == "__main__":
     asyncio.run(start_service())

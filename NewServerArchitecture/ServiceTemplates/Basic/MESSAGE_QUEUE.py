@@ -24,15 +24,15 @@ class MessageQueue:
         for queues in self.QueueList:
             await queues.bind(self.ExchangeName , routing_key=queues.name)
         
-    async def AddNewQueue(self, QueueName):
-        queue = await self.Channel.declare_queue(QueueName, durable=True)
+    async def AddNewQueue(self, QueueName,**queueParams):
+        queue = await self.Channel.declare_queue(QueueName, **queueParams)
         self.QueueList.append(queue)
     
     async def MapQueueToCallback(self, QueueName, Callback):
         self.QueueToCallbackMapping[QueueName] = Callback
 
-    async def AddQueueAndMapToCallback(self, QueueName, Callback):
-        await self.AddNewQueue(QueueName)
+    async def AddQueueAndMapToCallback(self, QueueName, Callback,**queueParams):
+        await self.AddNewQueue(QueueName,**queueParams)
         await self.MapQueueToCallback(QueueName, Callback)
 
     async def StartListeningToQueue(self):
@@ -42,10 +42,19 @@ class MessageQueue:
     async def PublishMessage(self, exchangeName , routingKey, message, headers=None):
         exchange = await self.Channel.declare_exchange(exchangeName)
 
-        
+        messageToSend = None
+        if "DATA_FORMAT" in headers:
+            if headers["DATA_FORMAT"] == "BYTES":
+                print("Bytes")
+                messageToSend = message
+            else:
+                messageToSend = message.encode()
+        else:
+            messageToSend = message.encode()
+
 
         await exchange.publish(
-            aio_pika.Message(body=message.encode(),headers=headers),
+            aio_pika.Message(body=messageToSend,headers=headers),
             routing_key=routingKey
         )
 

@@ -55,22 +55,88 @@ class UserManagerService:
 
     
 
-    async def handleSupervisorMessages(self, supervisorMessage, response=False):
+    async def handleSupervisorMessages(self, supervisorMessage, Headers, response=False):
         msgType = supervisorMessage['TYPE']
         msgData = supervisorMessage['DATA']
+
+        supervisorID = Headers["SESSION_SUPERVISOR_ID"]
+
         responseMsg = None
         if msgType == "NEW_SESSION":
-            pass
+            userCount = msgData["USER_COUNT"]
+            if userCount == "ALL":
+                if len(self.users) == 0:
+                    responseToSend = {"LIST_USER_ID" : [], "NOTICE" : "NOT_SUFFICIENT"}
+                    responseMsg = JSONResponse(content=json.dumps(responseToSend), media_type="application/json")
+                else:
+                    responseToSend = {"LIST_USER_ID" : self.users, "NOTICE" : "SUFFICIENT"}
+                    for users in self.users[:]:
+                        self.userToSupervisorIdMapping[users] = supervisorID
+                    self.users = []
+                    responseMsg = JSONResponse(content=json.dumps(responseToSend), media_type="application/json")
+            elif len(self.users) < userCount:
+                responseToSend = {"LIST_USER_ID" : self.users, "NOTICE" : "NOT_SUFFICIENT"}
+                for users in self.users[:]:
+                    self.userToSupervisorIdMapping[users] = supervisorID
+                self.users = []
+                responseMsg = JSONResponse(content=json.dumps(responseToSend), media_type="application/json")
+            else:
+                responseToSend = {"LIST_USER_ID" : self.users[:userCount], "NOTICE" : "SUFFICIENT"}
+                for users in self.users[:userCount]:
+                    self.userToSupervisorIdMapping[users] = supervisorID
+                self.users = self.users[userCount:]
+                responseMsg = JSONResponse(content=json.dumps(responseToSend), media_type="application/json")
+        
+            if response:
+                return responseToSend
         elif msgType == "ADDITIONAL_USERS":
-            pass
+            userCount = msgData["USER_COUNT"]
+            if userCount == "ALL":
+                if len(self.users) == 0:
+                    responseToSend = {"LIST_USER_ID" : [], "NOTICE" : "NOT_SUFFICIENT"}
+                    responseMsg = JSONResponse(content=json.dumps(responseToSend), media_type="application/json")
+                else:
+                    responseToSend = {"LIST_USER_ID" : self.users, "NOTICE" : "SUFFICIENT"}
+                    for users in self.users[:]:
+                        self.userToSupervisorIdMapping[users] = supervisorID
+                    self.users = []
+                    responseMsg = JSONResponse(content=json.dumps(responseToSend), media_type="application/json")
+            elif len(self.users) < userCount:
+                responseToSend = {"LIST_USER_ID" : self.users, "NOTICE" : "NOT_SUFFICIENT"}
+                for users in self.users[:]:
+                    self.userToSupervisorIdMapping[users] = supervisorID
+                self.users = []
+                responseMsg = JSONResponse(content=json.dumps(responseToSend), media_type="application/json")
+            else:
+                responseToSend = {"LIST_USER_ID" : self.users[:userCount], "NOTICE" : "SUFFICIENT"}
+                for users in self.users[:userCount]:
+                    self.userToSupervisorIdMapping[users] = supervisorID
+                self.users = self.users[userCount:]
+                responseMsg = JSONResponse(content=json.dumps(responseToSend), media_type="application/json")
+        
+            if response:
+                return responseToSend
         elif msgType == "SEND_MESSAGE_TO_USER":
-            pass
+            exchangeName = "COMMUNICATION_INTERFACE_EXCHANGE"
+            routingKey = "CIE_USER_MANAGER"
+
+            mainMessage = msgData
+            messageToSend = {"TYPE": "SEND_MESSAGE_TO_USER" , "DATA": mainMessage}
+            messageInJson = json.dumps(messageToSend)
+
+            await self.messageQueue.PublishMessage("USER_MANAGER_EXCHANGE", "UME_USER_SERVER", messageInJson)
+
+            responseMsg = {"STATUS" : "SUCCESS"}
         elif msgType == "USER_RELEASED":
-            pass
+            userIds = msgData["LIST_USER_ID"]
+            self.users.extend(userIds)
+            for users in userIds:
+                self.userToSupervisorIdMapping.pop(users)
+            
+            responseMsg = {"STATUS" : "SUCCESS"}
         elif msgType == "INITIALIZE_SESSION":
-            sessionId = msgData["SESSION_SUPERVISOR_ID"]
-            self.userToSupervisorIdMapping[sessionId] = []
-            self.supervisorToRoutingKeyMapping[sessionId] = f"SSE_{sessionId}_UM"
+            self.userToSupervisorIdMapping[supervisorID] = []
+            self.supervisorToRoutingKeyMapping[supervisorID] = f"SSE_{supervisorID}_UM"
             responseMsg = {"STATUS": "SUCCESS"}
         else:
             print("Unknown Message Type")
@@ -83,8 +149,11 @@ class UserManagerService:
     async def callbackSupervisorMessages(self, message):
         DecodedMessage = message.body.decode()
         DecodedMessage = json.loads(DecodedMessage)
+
+        Headers = message.headers
+
         self.CateringRequestLock.acquire()
-        await self.handleSupervisorMessages(DecodedMessage)
+        await self.handleSupervisorMessages(DecodedMessage,Headers)
         self.CateringRequestLock.release()
         
 
