@@ -418,17 +418,24 @@ class renderingSupervisor:
                 # mainMessage = {"USER_COUNT" : 1}
                 mainMessage = {"USER_COUNT" : "ALL"}
                 messageToSend = {"TYPE" : "NEW_SESSION" , "DATA" : mainMessage}
-                messageInJson = json.dumps(messageToSend)
-                response = requests.post(f"http://{userManagerServiceURL}/SessionSupervisor/NewSession" , json=messageInJson)
+                # messageInJson = json.dumps(messageToSend)
+
+                headersToSend = {"SESSION_SUPERVISOR_ID": self.ID}
+
+                response = requests.post(f"http://{userManagerServiceURL}/SessionSupervisor/NewSession" , json=messageToSend, headers=headersToSend)
 
                 if response.status_code == 200:
-                    data = await requests.json()
+                    data = json.loads(response.text)
                     self.userList = data['LIST_USER_ID']
 
                     if data["NOTICE"] == "NOT_SUFFICIENT":
                         print("Not Sufficent Users to Start the Rendering Process")
                         print("Waiting for 30 Seconds")
-                        asyncio.sleep(30)
+                        await asyncio.sleep(30)
+
+                        # import time
+                        # time.sleep(30)
+
                     elif data["NOTICE"] == "SUFFICIENT":
                         break
             else:
@@ -513,6 +520,8 @@ class sessionSupervisorService:
 
                 responseToSend = {"STATUS" : "SUCCESS" , "MESSAGE" : "RENDERING JOB INITIATED"}
                 responseMsg = JSONResponse(content=responseToSend , status_code=200)
+        elif msgType == "MESSAGE_TEST":
+            print(f"Message Test : {msgData}")
         else:
             responseToSend = {"STATUS" : "ERROR" , "MESSAGE" : "INVALID MESSAGE TYPE"}
             responseMsg = JSONResponse(content=responseToSend , status_code=400)
@@ -531,11 +540,12 @@ class sessionSupervisorService:
                 DecodedMessage = pickle.loads(message.body)
             else:
                 DecodedMessage = message.body.decode()
+                DecodedMessage = json.loads(DecodedMessage)
         else:
+            DecodedMessage = message.body.decode()
             DecodedMessage = json.loads(DecodedMessage)
 
 
-        print(DecodedMessage["DATA"].keys())
 
         self.CateringRequestLock.acquire()
         await self.handleCustomerAgentMessages(DecodedMessage)

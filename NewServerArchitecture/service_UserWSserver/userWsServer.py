@@ -101,7 +101,7 @@ class userWsServerService:
 
     async def startService(self):
         await self.messageQueue.InitializeConnection()
-        await self.messageQueue.AddQueueAndMapToCallback("UWSSE_CI", self.callbackCommunicationInterfaceMessages)
+        await self.messageQueue.AddQueueAndMapToCallback("UWSSE_CI", self.callbackCommunicationInterfaceMessages, auto_delete=True)
         await self.messageQueue.BoundQueueToExchange()
         await self.messageQueue.StartListeningToQueue()
 

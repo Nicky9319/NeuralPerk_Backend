@@ -32,7 +32,6 @@ class userHttpServerService:
         msgType = userMessage['TYPE']
         msgData = userMessage['DATA']
         if msgType == "FRAME_RENDERED":
-            print("Received Rendered Image")
             message = msgData["MESSAGE"]
             userId = msgData["USER_ID"]
             mainMessage = {"MESSAGE" : msgData , "USER_ID" : userId}
@@ -40,7 +39,6 @@ class userHttpServerService:
             await self.sendMessageToUserManager(messageToSend)
             return JSONResponse(content={"DATA" : "RECEIVED" , "TIME" : time.time()}, status_code=200)
         elif msgType == "RENDER_COMPLETED":
-            print("User Says it has Completed the Process !!!")
             userId = msgData["USER_ID"]
             mainMessage = {"MESSAGE" : msgData , "USER_ID" : userId}
             messageToSend = {"TYPE" : "USER_MESSAGE" , "DATA" : mainMessage}
@@ -58,14 +56,12 @@ class userHttpServerService:
         MetaDataType = bufferMsg["META_DATA"]
         if MetaDataType == "EXTRACT_BLEND_FILE_FROM_PATH":
             def getBlendBinaryFromPath(blendPath):
-                print(bufferMsg)
                 print(f"Blender File Path : {bufferMsg['DATA']}") 
                 
                 fileBinary = None
                 with open(bufferMsg["DATA"] , 'rb') as file:
                     fileBinary =  file.read()
                 
-                print(len(pickle.dumps(fileBinary)))
                 return fileBinary
                 
                 
@@ -78,11 +74,10 @@ class userHttpServerService:
     async def ConfigureHTTPRoutes(self):
         @self.httpServer.app.get("/")
         async def getDataFromServer(bufferUUID: str):
-            print(bufferUUID)
             if bufferUUID in self.bufferMsgs.keys():
                 bufferMsg = self.bufferMsgs[bufferUUID]
 
-                if "META_DATA" in bufferMsg.keys():
+                if type(bufferMsg) == dict and "META_DATA" in bufferMsg.keys():
                     bufferMsg = self.RefineDataFromMetaData(bufferMsg)
 
                 del self.bufferMsgs[bufferUUID]

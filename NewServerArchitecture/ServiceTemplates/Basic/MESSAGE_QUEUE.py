@@ -43,7 +43,7 @@ class MessageQueue:
         exchange = await self.Channel.declare_exchange(exchangeName)
 
         messageToSend = None
-        if "DATA_FORMAT" in headers:
+        if headers and "DATA_FORMAT" in headers:
             if headers["DATA_FORMAT"] == "BYTES":
                 print("Bytes")
                 messageToSend = message

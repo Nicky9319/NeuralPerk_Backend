@@ -34,8 +34,14 @@ class UserManagerService:
         @self.apiServer.app.post('/SessionSupervisor/NewSession')
         async def handlePostSessionSupervisor(request : Request):
             data = await request.json()
-            response = await self.handleSupervisorMessages(data , response=True)
-            return Response(content=json.dumps(response), media_type="application/json")
+            print(type(data))
+            print(data)
+            headers = request.headers
+
+            response = await self.handleSupervisorMessages(data, headers, response=True)
+            responseInJson = json.dumps(response)
+            return Response(content=responseInJson, media_type="application/json")
+
 
         @self.apiServer.app.get('/CustomerServer')
         async def handleGetCustomerServer():
@@ -124,7 +130,10 @@ class UserManagerService:
             messageToSend = {"TYPE": "SEND_MESSAGE_TO_USER" , "DATA": mainMessage}
             messageInJson = json.dumps(messageToSend)
 
-            await self.messageQueue.PublishMessage("USER_MANAGER_EXCHANGE", "UME_USER_SERVER", messageInJson)
+
+            print("Sending DATA TO User : ", mainMessage["MESSAGE_FOR_USER"])
+
+            await self.messageQueue.PublishMessage(exchangeName, routingKey, messageInJson)
 
             responseMsg = {"STATUS" : "SUCCESS"}
         elif msgType == "USER_RELEASED":
@@ -189,6 +198,8 @@ class UserManagerService:
             await self.messageQueue.PublishMessage(exchangeName, supervisorRoutingKey, messageToSend)
         elif msgType == "NEW_USER":
             self.users.append(msgData["USER_ID"])
+            print("New User Added")
+            print("Users: ", self.users)
         elif msgType == "REMOVE_USER":
             userId = msgData["USER_ID"]
             if userId in self.users:
@@ -203,6 +214,9 @@ class UserManagerService:
                 messageToSend = {"TYPE" : "USER_MESSAGE" , "DATA" : mainMessage}
 
                 await self.messageQueue.PublishMessage(exchangeName, supervisorRoutingKey, messageToSend)
+            
+            print("User Removed")
+            print("Users: ", self.users)
         else:
             print("Unknown Message Type")
             print("Received Message: ", userServerMessage)
@@ -221,9 +235,9 @@ class UserManagerService:
     
     async def startService(self):
         await self.messageQueue.InitializeConnection()
-        await self.messageQueue.AddQueueAndMapToCallback("UME_USER_SERVER", self.callbackUserServerMessages)
-        await self.messageQueue.AddQueueAndMapToCallback("UME_CUSTOMER_SERVER", self.callbackCustomerServerMessages)
-        await self.messageQueue.AddQueueAndMapToCallback("UME_SUPERVISOR", self.callbackSupervisorMessages)
+        await self.messageQueue.AddQueueAndMapToCallback("UME_USER_SERVER", self.callbackUserServerMessages, auto_delete = True)
+        await self.messageQueue.AddQueueAndMapToCallback("UME_CUSTOMER_SERVER", self.callbackCustomerServerMessages, auto_delete = True)
+        await self.messageQueue.AddQueueAndMapToCallback("UME_SUPERVISOR", self.callbackSupervisorMessages, auto_delete = True)
         await self.messageQueue.BoundQueueToExchange()
         await self.messageQueue.StartListeningToQueue()
 

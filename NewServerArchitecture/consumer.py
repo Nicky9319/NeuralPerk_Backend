@@ -4,8 +4,9 @@ import asyncio
 async def callback(message: aio_pika.IncomingMessage):
     async with message.process():
         print(f"Headers: {message.headers}")
+        print(f"Message body: {message.body}")
 
-async def start_consuming(exchange_name, queue_name):
+async def start_consuming(exchange_name, queue_name, **queue_args):
     # Establish a connection to RabbitMQ server
     connection = await aio_pika.connect_robust("amqp://guest:guest@localhost/")
     async with connection:
@@ -15,7 +16,7 @@ async def start_consuming(exchange_name, queue_name):
         await channel.declare_exchange(exchange_name, aio_pika.ExchangeType.DIRECT)
 
         # Declare the queue
-        queue = await channel.declare_queue(queue_name, auto_delete=True)
+        queue = await channel.declare_queue(queue_name, **queue_args)
 
         # Bind the queue to the exchange
         await queue.bind(exchange_name, routing_key=queue_name)
@@ -28,10 +29,10 @@ async def start_consuming(exchange_name, queue_name):
 
 # Example usage
 async def main():
-    exchange_name = "SESSION_SUPERVISOR_EXCHANGE"
+    exchange_name = "USER_MANAGER_EXCHANGE"
     # queue_name = "UME_SUPERVISOR"
-    queue_name = "SSE_d7a63e3c790149fab23e0549543537a5_CA"
-    await start_consuming(exchange_name, queue_name)
+    queue_name = "UME_USER_SERVER"
+    await start_consuming(exchange_name, queue_name, auto_delete=True)
 
 if __name__ == "__main__":
     asyncio.run(main())

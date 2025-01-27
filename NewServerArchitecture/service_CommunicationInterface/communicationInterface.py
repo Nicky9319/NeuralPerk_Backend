@@ -37,10 +37,12 @@ class CommunicationInterfaceService():
 
 
     async def sendMessageToUserManager(self, userManagerMessage):
+        print("Sending Message to User Manager")
         exchangeName = "USER_MANAGER_EXCHANGE"
-        routing_key = "UM_USER_SERVER"
+        routing_key = "UME_USER_SERVER"
         messageInJson = json.dumps(userManagerMessage)
         await self.messageQueue.PublishMessage(exchangeName, routing_key, messageInJson)
+        print("Message Sent to User Manager")
 
     async def SendMessageToHttpServer(self, messageToSend):
         exchangeName = "USER_HTTP_SERVER_EXCHANGE"
@@ -66,18 +68,19 @@ class CommunicationInterfaceService():
             print("Buffer Message Added to User")
             mainMessage = {"USER_ID" : userId , "BUFFER_UUID" : generateMessageUUID}
             messageToSend = {"TYPE": "SEND_BUFFER_REQUEST" , "DATA": mainMessage}
-            await self.SendMessageToWsServer(messageToSend)
+            await self.sendMessageToWsServer(messageToSend)
 
             
 
     
     async def handleUserManagerMessages(self, userManagerMessage, response=False):
+        print(type(userManagerMessage))
         msgType = userManagerMessage['TYPE']
         msgData = userManagerMessage['DATA']
         responseMsg = None
         if msgType == "SEND_MESSAGE_TO_USER":
             userId = msgData["USER_ID"]
-            messageForUser = msgData["DATA"]
+            messageForUser = msgData["MESSAGE_FOR_USER"]
             await self.sendMessageToUser(userId, messageForUser)
         else:
             print("Unknown Message Type")
@@ -90,6 +93,7 @@ class CommunicationInterfaceService():
     async def callbackUserManagerMessages(self, message):
         DecodedMessage = message.body.decode()
         DecodedMessage = json.loads(DecodedMessage)
+        print(type(DecodedMessage))
         self.CateringRequestLock.acquire()
         await self.handleUserManagerMessages(DecodedMessage)
         self.CateringRequestLock.release()
@@ -147,9 +151,9 @@ class CommunicationInterfaceService():
 
     async def startService(self):
         await self.messageQueue.InitializeConnection()
-        await self.messageQueue.AddQueueAndMapToCallback("CIE_USER_MANAGER", self.callbackUserManagerMessages)
-        await self.messageQueue.AddQueueAndMapToCallback("CIE_USER_HTTP_SERVER", self.callbackUserHttpServerMessages)
-        await self.messageQueue.AddQueueAndMapToCallback("CIE_USER_WS_SERVER", self.callbackUserWsServerMessages)
+        await self.messageQueue.AddQueueAndMapToCallback("CIE_USER_MANAGER", self.callbackUserManagerMessages, auto_delete = True)
+        await self.messageQueue.AddQueueAndMapToCallback("CIE_USER_HTTP_SERVER", self.callbackUserHttpServerMessages, auto_delete = True)
+        await self.messageQueue.AddQueueAndMapToCallback("CIE_USER_WS_SERVER", self.callbackUserWsServerMessages, auto_delete = True)
         await self.messageQueue.BoundQueueToExchange()
         await self.messageQueue.StartListeningToQueue()
 

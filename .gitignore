@@ -14,3 +14,4 @@ credentialServer.log
 progressUpload.py
 customerSim.py
 ServerSetup
+NewServerArchitecture/Logging/*

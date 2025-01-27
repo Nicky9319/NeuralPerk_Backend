@@ -28,11 +28,22 @@ async def publishData(exchange_name, routing_key, message, headers=None):
 # Example usage
 async def main():
     exchange_name = "USER_MANAGER_EXCHANGE"
-    routing_key = "UME_SUPERVISOR"
-    message = {"TYPE": "MESSAGE_TEST", "DATA": "NONE"}
-    headers = {"header_key": "VALUE"}
+    # exchange_name = "SESSION_SUPERVISOR_EXCHANGE"
+    # exchange_name = "COMMUNICATION_INTERFACE_EXCHANGE"
 
-    await publishData(exchange_name, routing_key, json.dumps(message), headers)
+
+    routing_key = "UME_SUPERVISOR"
+    # routing_key = f"SSE_{'d3b11affc7654de083d7b6d109f2a590'}_CA"
+    # routing_key = "CIE_USER_MANAGER"
+    print(routing_key)
+
+    
+    mainMessage = {"USER_ID":"erkHhKdbfxmzhHfBAAAD","MESSAGE_FOR_USER":"Nothing"}
+    message = {"TYPE": "SEND_MESSAGE_TO_USER", "DATA": mainMessage}
+
+    headers = {"SESSION_SUPERVISOR_ID" : "nothing"}
+
+    await publishData(exchange_name, routing_key, json.dumps(message), headers=headers)
 
 if __name__ == "__main__":
     asyncio.run(main())
