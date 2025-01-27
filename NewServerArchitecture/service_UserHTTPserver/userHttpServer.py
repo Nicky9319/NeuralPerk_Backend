@@ -51,24 +51,25 @@ class userHttpServerService:
             return JSONResponse(content={"DATA" : "RECEIVED" , "TIME" : time.time()}, status_code=200)
 
 
-    async def RefineDataFromMetaData(self, bufferMsg):
-        MetaDataType = bufferMsg["META_DATA"]
+    async def RefineDataFromMetaData(self, bufferMsgData):
+        print(bufferMsgData)
+        MetaDataType = bufferMsgData["META_DATA"]
         if MetaDataType == "EXTRACT_BLEND_FILE_FROM_PATH":
             def getBlendBinaryFromPath(blendPath):
-                print(f"Blender File Path : {bufferMsg['DATA']}") 
+                print(f"Blender File Path : {bufferMsgData['BINARY_BLEND_FILE']}") 
                 
                 fileBinary = None
-                with open(bufferMsg["DATA"] , 'rb') as file:
+                with open(bufferMsgData["BINARY_BLEND_FILE"] , 'rb') as file:
                     fileBinary =  file.read()
                 
                 return fileBinary
                 
                 
-            bufferMsg["DATA"] = getBlendBinaryFromPath(bufferMsg["DATA"])
+            bufferMsgData["BINARY_BLEND_FILE"] = getBlendBinaryFromPath(bufferMsgData["BINARY_BLEND_FILE"])
         else:
             pass
 
-        return bufferMsg
+        return bufferMsgData
 
     async def ConfigureHTTPRoutes(self):
         @self.httpServer.app.get("/")
@@ -76,8 +77,12 @@ class userHttpServerService:
             if bufferUUID in self.bufferMsgs.keys():
                 bufferMsg = self.bufferMsgs[bufferUUID]
 
-                if type(bufferMsg) == dict and "META_DATA" in bufferMsg.keys():
-                    bufferMsg = self.RefineDataFromMetaData(bufferMsg)
+                bufferMsgData = bufferMsg["DATA"]
+
+                if type(bufferMsg) == dict and "META_DATA" in bufferMsgData.keys():
+                    bufferMsgData = await self.RefineDataFromMetaData(bufferMsgData)
+
+                print("Sending Msg to User")
 
                 del self.bufferMsgs[bufferUUID]
                 return Response(content=pickle.dumps(bufferMsg), status_code=200, media_type="application/octet-stream")

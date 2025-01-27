@@ -95,7 +95,7 @@ class renderingSupervisor:
         fiteredFrames = [frame for frame in userFrames if self.frameStatus[frame] == False]
         del self.userIdToFrames[userId]
 
-        await self.distributeFrameAmongUsersAndSend(fiteredFrames , overwrite=False)
+        await self.distributeFrameAmongUsersAndSend(fiteredFrames, overwrite=False, extend=True)
 
 
 
@@ -112,8 +112,8 @@ class renderingSupervisor:
 
         await self.distributeFrameAmongUsers(remainingFrames , overwrite=True)
 
-        await self.sendBlendFileToSingleUser(userId, self.savedBlendFileName)
-        await self.sendFramesToSingleUser(userId, self.userIdToFrames[userId])
+        # await self.sendBlendFileToSingleUser(userId, self.savedBlendFileName)
+        # await self.sendFramesToSingleUser(userId, self.userIdToFrames[userId])
         await self.notifySingleUserToStartRendering(userId)
 
         for userId in self.userList:
@@ -136,7 +136,7 @@ class renderingSupervisor:
             userId = msgData['USER_ID']
             dataFrameRendered = msgData['DATA_FRAME_RENDERED']
             await self.FrameRenderCompleted(userId, dataFrameRendered)
-        elif msgType == "RENDER_COMPLETED":
+        elif msgType == "RENDERING_COMPLETED":
             userId = msgData['USER_ID']
             await self.UserRenderingProcessCompleted(userId)
 
@@ -218,16 +218,19 @@ class renderingSupervisor:
 
     
     # Distribute the Frames Among Users and Send the new Added Frames to them
-    async def distributeFrameAmongUsersAndSend(self, frameList , overwrite = False):
+    async def distributeFrameAmongUsersAndSend(self, frameList, overwrite = False, extend=False):
         numberOfUsers = len(self.userList)
         for userNumber in range(numberOfUsers):
             newAddedFrames = frameList[userNumber :: numberOfUsers]
-            if not overwrite:
-                self.idToFrames[self.userList[userNumber]].extend(newAddedFrames)
-                await self.sendFramesToSingleUser(self.userList[userNumber] , newAddedFrames)
-            else:
+            if overwrite:
                 self.idToFrames[self.userList[userNumber]] = newAddedFrames
                 await self.sendFramesToSingleUser(self.userList[userNumber] , newAddedFrames , overwrite=True)
+            elif extend:
+                self.idToFrames[self.userList[userNumber]] = newAddedFrames
+                await self.sendFramesToSingleUser(self.userList[userNumber] , newAddedFrames , extend=True)
+            else:
+                self.idToFrames[self.userList[userNumber]] = newAddedFrames
+                await self.sendFramesToSingleUser(self.userList[userNumber] , newAddedFrames)
 
     # Distribute the a list of Frames Among Remaining Users
     async def distributeFrameAmongUsers(self, frameList , overwrite = False):
@@ -243,47 +246,52 @@ class renderingSupervisor:
 
 
 
-
     # Sends the Blend File to a Particular User
     async def sendBlendFileToSingleUser(self, userId, blendFilePath):
-        mainMessage = {"BLEND_FILE_PATH" : blendFilePath , "META_DATA" : "EXTRACT_BLEND_FILE_FROM_PATH"}
+        mainMessage = {"BINARY_BLEND_FILE" : blendFilePath , "META_DATA" : "EXTRACT_BLEND_FILE_FROM_PATH"}
         messageToSend = {"TYPE" : "BLEND_FILE" , "DATA" : mainMessage}
         await self.sendMessageToSingleUser(userId , messageToSend)
     
     # Sends the Blend File to All Users
     async def sendBlendFileToAllUsers(self, blendFilePath):
-        mainMessage = {"BLEND_FILE_PATH" : blendFilePath , "META_DATA" : "EXTRACT_BLEND_FILE_FROM_PATH"}
+        mainMessage = {"BINARY_BLEND_FILE" : blendFilePath , "META_DATA" : "EXTRACT_BLEND_FILE_FROM_PATH"}
         messageToSend = {"TYPE" : "BLEND_FILE" , "DATA" : mainMessage}
         await self.sendMessageToAllUsers(messageToSend)
 
 
 
     # Sends the Frame List to a particular User
-    async def sendFramesToSingleUser(self, userId, framesList, overwrite = False):
+    async def sendFramesToSingleUser(self, userId, framesList, overwrite = False, extend=False):
         mainMessage = {"FRAMES" : framesList}
-        messageToSend = {"TYPE" : "FRAME_LIST" , "DATA" : mainMessage}
+        messageToSend = None
 
         if overwrite:
             messageToSend = {"TYPE" : "FRAME_LIST_OVERWRITE" , "DATA" : mainMessage}
+        elif extend:
+            messageToSend = {"TYPE" : "FRAME_LIST_EXTEND" , "DATA" : mainMessage}
+        else:
+            messageToSend = {"TYPE" : "FRAME_LIST" , "DATA" : mainMessage}
 
         await self.sendMessageToSingleUser(userId , messageToSend)
 
     # Send the Frame List to All Users
-    async def sendFramesToAllUsers(self, overwrite = False):
+    async def sendFramesToAllUsers(self, overwrite = False, extend=False):
         for userId in self.userList:
-            await self.sendFramesToSingleUser(userId, self.userIdToFrames[userId], overwrite)
+            await self.sendFramesToSingleUser(userId, self.userIdToFrames[userId], overwrite=overwrite, extend=extend)
 
 
 
     # Sends the Message to a Single User to Start the Rendering Process
-    async def notifySingleUserToStartRendering(self, userId):
-        messageToSend = {"TYPE" : "START_RENDERING"}
+    async def notifySingleUserToStartRendering(self, userId, blendFilePath):
+        userFrames = self.userIdToFrames[userId]
+        mainMessage = {"FRAMES" : userFrames, "BINARY_BLEND_FILE" : blendFilePath, "META_DATA" : "EXTRACT_BLEND_FILE_FROM_PATH"}
+        messageToSend = {"TYPE" : "INITIALIZE_AND_RUN_MANAGER", "DATA" : mainMessage}
         await self.sendMessageToSingleUser(userId , messageToSend)
 
     # Sends the Message to All Users to Start the Rendering Process
-    async def notifyAllUsersToStartRendering(self):
-        messageToSend = {"TYPE" : "START_RENDERING"}
-        await self.sendMessageToAllUsers(messageToSend)
+    async def notifyAllUsersToStartRendering(self, blendFilePath):
+        for userId in self.userList:
+            await self.notifySingleUserToStartRendering(userId, blendFilePath)
 
 
 
@@ -503,15 +511,12 @@ class sessionSupervisorService:
 
 
 
-        await self.supervisor.sendBlendFileToAllUsers(self.savedBlendFilePath)
 
-        # await asyncio.sleep(1)
-        # self.logger.info("Sending Frames to All Users")
-        await self.supervisor.sendFramesToAllUsers() 
 
-        # await asyncio.sleep(10)
-        # self.logger.info("Notifying All Users to Start Rendering")
-        await self.supervisor.notifyAllUsersToStartRendering()
+        # await self.supervisor.sendBlendFileToAllUsers(self.savedBlendFilePath)
+        # await self.supervisor.sendFramesToAllUsers() 
+
+        await self.supervisor.notifyAllUsersToStartRendering(self.savedBlendFilePath)
 
 
 

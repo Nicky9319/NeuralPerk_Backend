@@ -68,8 +68,6 @@ class UserManagerService:
 
         supervisorID = Headers["SESSION_SUPERVISOR_ID"]
 
-        # print(f"Supervisor ID : {supervisorID}")
-        # print(f"Message Type : {msgType}")
 
         responseMsg = None
         if msgType == "NEW_SESSION":
@@ -127,11 +125,6 @@ class UserManagerService:
             if response:
                 return responseToSend
         elif msgType == "SEND_MESSAGE_TO_USER":
-            print()
-            print()
-            print()
-            print('-----------------------------------------------------------------------------')
-            print()
             exchangeName = "COMMUNICATION_INTERFACE_EXCHANGE"
             routingKey = "CIE_USER_MANAGER"
 
