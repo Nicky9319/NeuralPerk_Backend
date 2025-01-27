@@ -23,7 +23,6 @@ class UserManagerService:
         self.userToSupervisorIdMapping = {} # Email Address of Customer Linked to the User associated with it
         self.supervisorToRoutingKeyMapping = {} # Supervisor Name to Routing Key Mapping
         
-        self.CateringRequestLock = threading.Lock()
         
 
     async def ConfigureApiRoutes(self):
@@ -39,6 +38,7 @@ class UserManagerService:
             headers = request.headers
 
             response = await self.handleSupervisorMessages(data, headers, response=True)
+            print("Supervisor API Call fullfileed, Returning Results")
             responseInJson = json.dumps(response)
             return Response(content=responseInJson, media_type="application/json")
 
@@ -61,11 +61,15 @@ class UserManagerService:
 
     
 
+
     async def handleSupervisorMessages(self, supervisorMessage, Headers, response=False):
         msgType = supervisorMessage['TYPE']
         msgData = supervisorMessage['DATA']
 
         supervisorID = Headers["SESSION_SUPERVISOR_ID"]
+
+        # print(f"Supervisor ID : {supervisorID}")
+        # print(f"Message Type : {msgType}")
 
         responseMsg = None
         if msgType == "NEW_SESSION":
@@ -123,6 +127,11 @@ class UserManagerService:
             if response:
                 return responseToSend
         elif msgType == "SEND_MESSAGE_TO_USER":
+            print()
+            print()
+            print()
+            print('-----------------------------------------------------------------------------')
+            print()
             exchangeName = "COMMUNICATION_INTERFACE_EXCHANGE"
             routingKey = "CIE_USER_MANAGER"
 
@@ -131,7 +140,6 @@ class UserManagerService:
             messageInJson = json.dumps(messageToSend)
 
 
-            print("Sending DATA TO User : ", mainMessage["MESSAGE_FOR_USER"])
 
             await self.messageQueue.PublishMessage(exchangeName, routingKey, messageInJson)
 
@@ -156,16 +164,19 @@ class UserManagerService:
             return responseMsg
 
     async def callbackSupervisorMessages(self, message):
+        print("Supervisor Send a Message")
+
         DecodedMessage = message.body.decode()
         DecodedMessage = json.loads(DecodedMessage)
 
         Headers = message.headers
 
-        self.CateringRequestLock.acquire()
-        await self.handleSupervisorMessages(DecodedMessage,Headers)
-        self.CateringRequestLock.release()
-        
+        print("UM : Waiting For Lock to Be Released")
 
+        await self.handleSupervisorMessages(DecodedMessage,Headers)
+
+        print("Supervisor Request Handled")
+        
 
     async def handleCustomerServerMessages(self, customerServerMessage, response=False):
         msgType = customerServerMessage['TYPE']
@@ -174,9 +185,8 @@ class UserManagerService:
     async def callbackCustomerServerMessages(self , message):
         DecodedMessage = message.body.decode()
         DecodedMessage = json.loads(DecodedMessage)
-        self.CateringRequestLock.acquire()
+
         await self.handleCustomerServerMessages(DecodedMessage)
-        self.CateringRequestLock.release()
 
 
     async def handleUserServerMessages(self, userServerMessage, response=False):
@@ -228,16 +238,17 @@ class UserManagerService:
     async def callbackUserServerMessages(self, message):
         DecodedMessage = message.body.decode()
         DecodedMessage = json.loads(DecodedMessage)
-        self.CateringRequestLock.acquire()
+
         await self.handleUserServerMessages(DecodedMessage)
-        self.CateringRequestLock.release()
+
+
 
     
     async def startService(self):
         await self.messageQueue.InitializeConnection()
         await self.messageQueue.AddQueueAndMapToCallback("UME_USER_SERVER", self.callbackUserServerMessages, auto_delete = True)
         await self.messageQueue.AddQueueAndMapToCallback("UME_CUSTOMER_SERVER", self.callbackCustomerServerMessages, auto_delete = True)
-        await self.messageQueue.AddQueueAndMapToCallback("UME_SUPERVISOR", self.callbackSupervisorMessages, auto_delete = True)
+        await self.messageQueue.AddQueueAndMapToCallback("UME_SESSION_SUPERVISOR", self.callbackSupervisorMessages, auto_delete = True)
         await self.messageQueue.BoundQueueToExchange()
         await self.messageQueue.StartListeningToQueue()
 

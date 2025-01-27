@@ -232,16 +232,9 @@ def check_node_get_request(data):
     if(data['TYPE'] == "CUSTOMERS"):
         email = data['EMAIL']
         if email == "paarthsaxena2005@gmail.com":
-            return jsonify({'message': 'Registered'}), 200
+            return jsonify({'MESSAGE': 'REGISTERED'}), 200
         
-        return jsonify({'message': 'Unregistered'}), 200
-        # credsVal = (data['EMAIL'],)
-        # cursor.execute("select email from customers")
-        # queryResult = cursor.fetchall()
-        # if credsVal in queryResult:
-        #     return jsonify({'message': 'Registered'}), 200
-        # else:
-        #     return jsonify({'message': 'Unregistered'}), 200
+        return jsonify({'MESSAGE': 'UNREGISTERED'}), 200
     elif(data['TYPE'] == "USERS"):
         email = data['EMAIL']
         if mongo.CheckUserExist(email):

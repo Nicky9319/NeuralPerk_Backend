@@ -25,7 +25,6 @@ class userHttpServerService:
 
         self.bufferMsgs = {}
 
-        self.CateringRequestLock = threading.Lock()
 
 
     async def handleUserMessage(self, userMessage):
@@ -105,6 +104,7 @@ class userHttpServerService:
             return Response(content=json.dumps(response), media_type="application/json")
     
 
+
     async def handleCommunicationInterfaceMessages(self, CIMessage , response=False):
         msgType = CIMessage['TYPE']
         msgData = CIMessage['DATA']
@@ -123,14 +123,13 @@ class userHttpServerService:
         if response:
             return responseMsg
         
-
     async def callbackCommunicationInterfaceMessages(self, message):
         DecodedMessage = message.body.decode()
         DecodedMessage = json.loads(DecodedMessage)
-        self.CateringRequestLock.acquire()
+
         await self.handleCommunicationInterfaceMessages(DecodedMessage)
-        self.CateringRequestLock.release()
         
+
 
     async def sendMessageToUserManager(self, mainMessage):
         exchangeName = "COMMUNICATION_INTERFACE_EXCHANGE"

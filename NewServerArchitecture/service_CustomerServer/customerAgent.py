@@ -46,15 +46,14 @@ class customerAgent():
     def SpawnSessionSupervisorService(self, sessionId):
         portToRunService = self.FindFreePort()
         print("Running on Port : " , portToRunService)
-        # subprocess.Popen(["python3" , "service_SessionSupervisor/sessionSupervisor.py" , "--host", "127.0.0.1" , "--port", f"{portToRunService}" , "--id" , f"{sessionId}"],
-        #     stdout=subprocess.PIPE,
-        #     stderr=subprocess.PIPE,
-        #     preexec_fn=os.setpgrp
-        # )
+        subprocess.Popen(["python3" , "service_SessionSupervisor/sessionSupervisor.py" , "--host", "127.0.0.1" , "--port", f"{portToRunService}" , "--id" , f"{sessionId}"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            preexec_fn=os.setpgrp
+        )
 
-        subprocess.run(["python3" , "service_SessionSupervisor/sessionSupervisor.py" , "--host", "127.0.0.1" , "--port", f"{portToRunService}" , "--id" , f"{sessionId}"],)
+        # subprocess.run(["python3" , "service_SessionSupervisor/sessionSupervisor.py" , "--host", "127.0.0.1" , "--port", f"{portToRunService}" , "--id" , f"{sessionId}"],)
 
-        # Command to Run the Session Supervisor Service With On the Specific Port
 
     async def InitializeSession(self , sessionData):
         await self.messageQueue.InitializeConnection()
@@ -74,6 +73,8 @@ class customerAgent():
         # sessionInfo = {"SESSION_DATA" : self.sessionData}
         messageToSend = {"TYPE" : "SESSION_INIT_DATA" , "DATA" : self.sessionData}
         messageInBytes = pickle.dumps(messageToSend)
+
+        print(f"Session Data :  {sessionData.keys()}")
 
         headersToSend = {"DATA_FORMAT" : f"BYTES"}
 

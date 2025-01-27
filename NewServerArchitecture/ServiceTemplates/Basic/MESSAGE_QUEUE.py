@@ -13,6 +13,7 @@ class MessageQueue:
         self.Channel = None
         self.QueueList = []
         self.QueueToCallbackMapping = {}  
+        self.DeclaredExchanges = {}
 
 
     async def InitializeConnection(self):
@@ -40,7 +41,18 @@ class MessageQueue:
             await queue.consume(self.QueueToCallbackMapping[queue.name])
 
     async def PublishMessage(self, exchangeName , routingKey, message, headers=None):
-        exchange = await self.Channel.declare_exchange(exchangeName)
+        print(f"Declaring Exchange : {exchangeName}")
+
+        exchange = None
+        if exchangeName not in self.DeclaredExchanges.keys():
+            # print(f"Exchange Not Declared")
+            exchange = await self.Channel.declare_exchange(exchangeName)
+            self.DeclaredExchanges[exchangeName] = exchange
+        else:
+            # print(f"Exchange Already Declared")
+            exchange = self.DeclaredExchanges[exchangeName]
+
+        # print(f"Exchange Declared Moving Forward to Sending Message")
 
         messageToSend = None
         if headers and "DATA_FORMAT" in headers:
@@ -52,6 +64,8 @@ class MessageQueue:
         else:
             messageToSend = message.encode()
 
+
+        print(f"Exchange Name : {exchangeName}. Routing Key : {routingKey}")
 
         await exchange.publish(
             aio_pika.Message(body=messageToSend,headers=headers),

@@ -4,7 +4,7 @@ import asyncio
 async def callback(message: aio_pika.IncomingMessage):
     async with message.process():
         print(f"Headers: {message.headers}")
-        print(f"Message body: {message.body}")
+        print(f"Message Received")
 
 async def start_consuming(exchange_name, queue_name, **queue_args):
     # Establish a connection to RabbitMQ server
@@ -31,7 +31,8 @@ async def start_consuming(exchange_name, queue_name, **queue_args):
 async def main():
     exchange_name = "USER_MANAGER_EXCHANGE"
     # queue_name = "UME_SUPERVISOR"
-    queue_name = "UME_USER_SERVER"
+
+    queue_name = "UME_SESSION_SUPERVISOR_TEST"
     await start_consuming(exchange_name, queue_name, auto_delete=True)
 
 if __name__ == "__main__":

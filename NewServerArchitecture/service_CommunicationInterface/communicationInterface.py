@@ -21,7 +21,6 @@ class CommunicationInterfaceService():
         self.messageQueue = MessageQueue("amqp://guest:guest@localhost/" , "COMMUNICATION_INTERFACE_EXCHANGE")
         self.apiServer = HTTPServer(httpServerHost, httpServerPort)
 
-        self.CateringRequestLock = threading.Lock()
 
 
 
@@ -54,7 +53,9 @@ class CommunicationInterfaceService():
         exchangeName = "USER_WS_SERVER_EXCHANGE"
         routing_key = "UWSSE_CI"
         messageInJson = json.dumps(messageToSend)
+        # print("CI: Sending Message To Ws Server")
         await self.messageQueue.PublishMessage(exchangeName, routing_key, messageInJson)
+        # print("CI : Message Send to Ws Server")
         
     async def sendMessageToUser(self, userId, message):
         generateMessageUUID = str(uuid.uuid4())
@@ -79,6 +80,7 @@ class CommunicationInterfaceService():
         msgData = userManagerMessage['DATA']
         responseMsg = None
         if msgType == "SEND_MESSAGE_TO_USER":
+            print("CI : User Manager Asked to Send Message to User")
             userId = msgData["USER_ID"]
             messageForUser = msgData["MESSAGE_FOR_USER"]
             await self.sendMessageToUser(userId, messageForUser)
@@ -94,9 +96,8 @@ class CommunicationInterfaceService():
         DecodedMessage = message.body.decode()
         DecodedMessage = json.loads(DecodedMessage)
         print(type(DecodedMessage))
-        self.CateringRequestLock.acquire()
+        
         await self.handleUserManagerMessages(DecodedMessage)
-        self.CateringRequestLock.release()
 
 
 
@@ -119,9 +120,8 @@ class CommunicationInterfaceService():
     async def callbackUserHttpServerMessages(self, message):
         DecodedMessage = message.body.decode()
         DecodedMessage = json.loads(DecodedMessage)
-        self.CateringRequestLock.acquire()
-        await self.handleUserHttpServerMessages(DecodedMessage)
-        self.CateringRequestLock.release()
+
+        asyncio.create_task(self.handleUserHttpServerMessages(DecodedMessage))
         
 
 
@@ -143,9 +143,8 @@ class CommunicationInterfaceService():
     async def callbackUserWsServerMessages(self , message):
         DecodedMessage = message.body.decode()
         DecodedMessage = json.loads(DecodedMessage)
-        self.CateringRequestLock.acquire()
+
         await self.handleUserWsServerMessages(DecodedMessage)
-        self.CateringRequestLock.release()
 
 
 

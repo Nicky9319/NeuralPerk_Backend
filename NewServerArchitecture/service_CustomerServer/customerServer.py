@@ -36,9 +36,9 @@ class CustomerServerService():
 
     async def ConfigureHttpRoutes(self):
 
-        async def handleSessionCreationRequest(msgData):
-            email = msgData["EMAIL"]
-            mainData = msgData["DATA"]
+        async def handleSessionCreationRequest(data):
+            email = data["EMAIL"]
+            mainData = data["DATA"]
             if email not in self.sessionStatus.keys():
                 self.sessionCreationRequests[email] = mainData
                 self.sessionStatus[email] = "PENDING"
@@ -58,20 +58,22 @@ class CustomerServerService():
             elif(content_type == 'application/bytes'):
                 data= await request.body()
                 data = pickle.loads(data)
-            
-            msgType = data["TYPE"]
-            msgData = data["DATA"]
-            mainMessage = msgData
-            messageToSend = {"TYPE": msgType , "DATA": mainMessage}
+
+
+            personaType = data["PERSONA_TYPE"]
+            email = data["EMAIL"]
+            password = data["PASSWORD"]
+
+            messageToSend = {"EMAIL": email , "PASSWORD": password, "TYPE": personaType}
             messageInJson = json.dumps(messageToSend)
 
             credentialServerServiceURL = await self.getServiceURL("CREDENTIAL_SERVER")
             response = requests.get(f"http://{credentialServerServiceURL}/check_node?message={messageInJson}")
 
             if response.status_code == 200:
-                responseData = await response.json()
+                responseData = response.json()
                 if(responseData["MESSAGE"] == "REGISTERED"):
-                    return self.handleSessionCreationRequest(msgData)
+                    return await handleSessionCreationRequest(data)
                 else:
                     return JSONResponse(content={"MESSAGE": "INVALID_EMAIL_OR_PASSWORD"} , status_code=401)
             else:
@@ -79,22 +81,22 @@ class CustomerServerService():
 
             
 
-        async def initializeCustomerSession(self, customerEmail):
+        async def initializeCustomerSession(customerEmail):
             print(f"Session Inititalizing for the Customer : {customerEmail}")
             newCustomerAgent = customerAgent()
             self.customerAgentList[customerEmail] = newCustomerAgent
-            messageToSend = {"EMAIL": customerEmail , "DATA": self.sessionCreationRequests[customerEmail] , "DATETIME": time.strftime("%Y-%m-%d : %H:%M:%S")}
-            newCustomerAgent.InitializeSession(messageToSend)
+            messageToSend = {"META_DATA" : {"EMAIL" : customerEmail} , "SESSION_DATA": self.sessionCreationRequests[customerEmail]}
+
+            await newCustomerAgent.InitializeSession(messageToSend)
             return True
             
         @self.httpServer.app.post("/initializeSession")
         async def initializeSessionCallback(request: Request):
             print("Initialize Session Called")
             data = await request.json()
-            msgData = data["DATA"]
-            email = msgData["EMAIL"]
+            email = data["EMAIL"]
             if email in self.sessionCreationRequests.keys():
-                if await self.initializeCustomerSession(email):
+                if await initializeCustomerSession(email):
                     print(f"Session Initialized for the Customer : {email}")
                     print(len(self.customerAgentList))
 
@@ -132,16 +134,15 @@ class CustomerServerService():
             message = request.query_params.get("message")
             data = json.loads(message)
 
-            msgType = data["TYPE"]
-            msgData = data["DATA"]
-            if msgType == "CUSTOMERS":
-                email = msgData["EMAIL"]
+            personalType = data["PERSONA_TYPE"]
+            email = data["EMAIL"]
+            if personalType == "CUSTOMERS":
                 if email in self.sessionStatus.keys():
                     responseToSend = {"MESSAGE": self.sessionStatus[email]}
-                    JSONResponse(content=responseToSend , status_code=200)
+                    return JSONResponse(content=responseToSend , status_code=200)
                 else:
                     responseToSend = {"MESSAGE": "IDLE"}
-                    JSONResponse(content=responseToSend , status_code=200)
+                    return JSONResponse(content=responseToSend , status_code=200)
             else:
                 responseToSend = {"MESSAGE": "INVALID_REQUEST"}
                 return JSONResponse(content=responseToSend , status_code=400)

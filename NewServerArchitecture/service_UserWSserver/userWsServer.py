@@ -26,7 +26,6 @@ class userWsServerService:
         self.wsServer.app = web.Application()
         self.wsServer.sio.attach(self.wsServer.app)
 
-        self.CateringRequestLock = threading.Lock()
 
         self.clients = {}
 
@@ -81,12 +80,11 @@ class userWsServerService:
             return responseMsg
 
     async def callbackCommunicationInterfaceMessages(self, message):
+        print("Received Message from Communication Interface")
         DecodedMessage = message.body.decode()
         DecodedMessage = json.loads(DecodedMessage)
-        self.CateringRequestLock.acquire()
-        print(DecodedMessage)
+
         await self.handleCommunicationInterfaceMessages(DecodedMessage)
-        self.CateringRequestLock.release()
         
 
     async def sendMessageToUserManager(self, mainMessage):

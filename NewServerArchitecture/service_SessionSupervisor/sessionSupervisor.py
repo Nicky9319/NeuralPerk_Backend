@@ -46,8 +46,12 @@ class renderingSupervisor:
         self.userIdToFrames = {}
         self.frameStatus = {}
 
+        self.logger = logging.getLogger(__name__)
+
         self.ID = supervisorID
         self.messageQueue = MessageQueueReference
+
+        self.logger.info(f"{type(self.messageQueue)}")
 
 # Basic Utility Section !!! ----------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -61,6 +65,7 @@ class renderingSupervisor:
 # User Interaction Section !!! ------------------------------------------------------------------------------------------------------------------------------------------------
 
     async def sendMessageToAllUsers(self, message):
+        self.logger.info("Need to Send Message to All Users")
         for userId in self.userList:
             await self.sendMessageToSingleUser(userId, message)
 
@@ -68,13 +73,15 @@ class renderingSupervisor:
         exchangeName = "USER_MANAGER_EXCHANGE"
         routingKey = "UME_SESSION_SUPERVISOR"
 
-        mainMessage = message
+        mainMessage = {"USER_ID" : userId, "MESSAGE_FOR_USER" : message}
         messageToSend = {"TYPE" : "SEND_MESSAGE_TO_USER" , "DATA" : mainMessage}
         messageInJson = json.dumps(messageToSend)
 
         headersToInclude = {"SESSION_SUPERVISOR_ID": self.ID}
 
-        self.messageQueue.PublishMessage(exchangeName, routingKey, messageInJson, headersToInclude)
+        self.logger.info(f"Sending Message to User : {userId} by Publishing it to the Queue")
+        await self.messageQueue.PublishMessage(exchangeName, routingKey, messageInJson, headersToInclude)
+        self.logger.info(f"Message Sent to User : {userId}")
 
 
 
@@ -331,10 +338,16 @@ class renderingSupervisor:
 
     # Returns the Last and First Frame of a Scene in Blender
     async def getLastAndFirstFrame(self , blendFileName):
-        script_path = "getFrameRange.py"
-        print("Getting the Frame Range of the Scene !!!")
-        result = subprocess.run(["blender", "--background", blendFileName, "--python", script_path], capture_output=True , text = True)
-        print("Process Of Finding Frame Completed !!!")
+        script_path = "service_SessionSupervisor/getFrameRange.py"
+
+        self.logger.info("Getting the Frame Range of the Scene !!!")
+
+        command = f"blender --background {blendFileName} --python {script_path}"
+        self.logger.info(f"Command to Get Frame Range : {command}")
+        result = subprocess.run([command], capture_output=True , text = True, shell=True)
+        
+        self.logger.info("Process Of Finding Frame Completed !!!")
+
 
         output = result.stdout.split("\n")
 
@@ -342,6 +355,8 @@ class renderingSupervisor:
         last_frame = [line.split(":")[1] for line in output if "LF" in line.split(":")[0]][0]
 
         frameList = [last_frame, first_frame]
+        self.logger.info(f"First Frame : {first_frame} , Last Frame : {last_frame}")
+        
         return frameList
     
     # Stores the Blend File In Local Directoy from the Binary it is given and also stores the name of the Folder
@@ -369,8 +384,6 @@ class renderingSupervisor:
         with open(f"{input_file_path}/{str(file_name)}.blend" , "wb") as file:
             file.write(binaryBlendData)
         
-        self.currentFolder = sub_dir_path
-        self.renderedImagesFolder = renderer_images_path
         return f"{input_file_path}/{str(file_name)}" + ".blend"
 
 
@@ -459,11 +472,10 @@ class sessionSupervisorService:
 
         self.supervisor = None
 
-        # logging.basicConfig(filename = f"Logging/ss.log" ,level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-        # self.logger = logging.getLogger(__name__)
+        logging.basicConfig(filename = f"Logging/ss.log" ,level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+        self.logger = logging.getLogger(__name__)
 
 
-        self.CateringRequestLock = threading.Lock()
     
     async def ConfigureApiRoutes(self):
         pass
@@ -474,20 +486,35 @@ class sessionSupervisorService:
         self.supervisor = renderingSupervisor(self.renderingComplete, self.messageQueue, self.ID)
         await self.supervisor.RenderingProcessInititalSetup()
 
-        self.savedBlendFileName = await self.supervisor.saveBlendFileBinary(renderingInfo['DATA_BINARY_BLENDFILE'] , self.customerEmail)
+        self.savedBlendFilePath = await self.supervisor.saveBlendFileBinary(renderingInfo['DATA_BINARY_BLENDFILE'] , self.customerEmail)
 
-        LastFrame, FirstFrame = await self.supervisor.getLastAndFirstFrame(self.savedBlendFileName)
+        self.logger.info(f"Blend File Saved at : {self.savedBlendFilePath}")
+
+        LastFrame, FirstFrame = await self.supervisor.getLastAndFirstFrame(self.savedBlendFilePath)
         LastFrame = int(LastFrame)
         FirstFrame = int(FirstFrame)
 
-        numberOfWorkers = len(self.userList)
+        numberOfWorkers = len(self.supervisor.userList)
 
-        self.userIdToFrames = await self.supervisor.assignFramesToUsers(FirstFrame , LastFrame , numberOfWorkers)
-        self.frameStatus = await self.supervisor.createFrameStatusDict(FirstFrame , LastFrame)
 
-        await self.supervisor.sendBlendFileToAllUsers(self.savedBlendFileName)
-        await self.supervisor.sendFramesToAllUsers()
+        self.supervisor.userIdToFrames = await self.supervisor.assignFramesToUsers(FirstFrame , LastFrame , numberOfWorkers)
+        self.supervisor.frameStatus = await self.supervisor.createFrameStatusDict(FirstFrame , LastFrame)
+
+
+
+
+        await self.supervisor.sendBlendFileToAllUsers(self.savedBlendFilePath)
+
+        # await asyncio.sleep(1)
+        # self.logger.info("Sending Frames to All Users")
+        await self.supervisor.sendFramesToAllUsers() 
+
+        # await asyncio.sleep(10)
+        # self.logger.info("Notifying All Users to Start Rendering")
         await self.supervisor.notifyAllUsersToStartRendering()
+
+
+
 
         self.renderingComplete.wait()
 
@@ -511,10 +538,13 @@ class sessionSupervisorService:
         msgData = customerAgentMessage['DATA']
 
         if msgType == "SESSION_INIT_DATA":
-            jobProfile = msgData['JOB_PROFILE']
+            metaData = msgData["META_DATA"]
+
+            sessionData = msgData["SESSION_DATA"]
+            jobProfile = sessionData["JOB_PROFILE"]
             if jobProfile == "RENDERING":
-                self.customerEmail = msgData["EMAIL"]
-                renderingInfo = msgData["DATA"]
+                self.customerEmail = metaData["EMAIL"]
+                renderingInfo = sessionData
 
                 asyncio.create_task(self.ManageRenderingProcess(renderingInfo))
 
@@ -546,10 +576,7 @@ class sessionSupervisorService:
             DecodedMessage = json.loads(DecodedMessage)
 
 
-
-        self.CateringRequestLock.acquire()
         await self.handleCustomerAgentMessages(DecodedMessage)
-        self.CateringRequestLock.release()
 
 
 
@@ -573,9 +600,8 @@ class sessionSupervisorService:
     async def callbackUserManagerMessages(self, message):
         DecodedMessage = message.body.decode()
         DecodedMessage = json.loads(DecodedMessage)
-        self.CateringRequestLock.acquire()
+
         await self.handleUserManagerMessages(DecodedMessage)
-        self.CateringRequestLock.release()
 
 
 
