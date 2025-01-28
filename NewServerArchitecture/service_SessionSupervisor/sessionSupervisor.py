@@ -53,6 +53,8 @@ class renderingSupervisor:
 
         self.logger.info(f"{type(self.messageQueue)}")
 
+
+        self.savedBlendFilePath = None
         self.renderedImagesFolder = "RenderedImages"
 
 # Basic Utility Section !!! ----------------------------------------------------------------------------------------------------------------------------------------------------
@@ -109,23 +111,27 @@ class renderingSupervisor:
         for userId in userIdList:
             await self.handleSingleUserAddition(userId)
 
-    async def handleSingleUserAddition(self, userId):
+    async def handleSingleUserAddition(self, newUserId):
         remainingFrames = []
         
+        self.logger.info(f"User : {newUserId} Added")
         for userId in self.userList:
             remainingFrames.extend(self.userIdToFrames[userId])
             self.userIdToFrames[userId] = []
+
+        self.userList.append(newUserId)
+        self.logger.info(f"User List Updated : {self.userList}")
 
         await self.distributeFrameAmongUsers(remainingFrames , overwrite=True)
 
         # await self.sendBlendFileToSingleUser(userId, self.savedBlendFileName)
         # await self.sendFramesToSingleUser(userId, self.userIdToFrames[userId])
-        await self.notifySingleUserToStartRendering(userId)
+        await self.notifySingleUserToStartRendering(newUserId, self.saveBlendFileBinary)
 
         for userId in self.userList:
-            await self.sendFramesToSingleUser(userId, self.userIdToFrames[userId], overwrite=True)
+            if userId != newUserId:
+                await self.sendFramesToSingleUser(userId, self.userIdToFrames[userId], overwrite=True)
 
-        self.userList.append(userId)
 
 
 
@@ -154,12 +160,15 @@ class renderingSupervisor:
         msgType = userManagerMessage['TYPE'] 
         msgData = userManagerMessage['DATA']
 
+        self.logger.info("Received Message from User Manager")
+
         responseMsg = None
         if msgType == "USER_DISCONNECT":
             await self.handleSingleUserDisconnect(msgData['USER_ID'])
             responseToSend = {"STATUS" : "SUCCESS" , "MESSAGE" : "USER_DISCONNECT_HANDLED"}
             responseMsg = JSONResponse(content=responseToSend , status_code=200)
         elif msgType == "ADDITIONAL_USER_LIST":
+            self.logger.info("Received Additional user List")
             await self.handleMultipleUserAddition(msgData['LIST_USER_ID'])
             responseToSend = {"STATUS" : "SUCCESS" , "MESSAGE" : "USER_DISCONNECT_HANDLED"}
             responseMsg = JSONResponse(content=responseToSend , status_code=200)
@@ -304,12 +313,12 @@ class renderingSupervisor:
 
 
 
-    # Sends the Message to a Single User that the Rendering Process has been Completed
+    # Sends the necessary files and data to a Single users so that they can start the Rendering Process
     async def notifySingleUserRenderingCompleted(self, userId):
         messageToSend = {"TYPE" : "RENDERING_COMPLETED"}
         await self.sendMessageToSingleUser(userId , messageToSend)
 
-    # Sends the Message to All Users that the Rendering Process has been Completed
+    # Sends the necessary files and data to all users so that they can start the Rendering Process
     async def notifyAllUsersRenderingCompleted(self):
         messageToSend = {"TYPE" : "RENDERING_COMPLETED"}
         self.sendMessageToAllUsers(messageToSend)
@@ -404,6 +413,7 @@ class renderingSupervisor:
 
         self.renderedImagesFolder = renderer_images_path    
 
+
         return f"{input_file_path}/{str(file_name)}" + ".blend"
 
 
@@ -443,13 +453,29 @@ class renderingSupervisor:
 
 
 
+    # Asks for More Users from the User Manager
+    async def askMoreUser(self, userCount = 0):
+        if userCount == 0:
+            return
+        
+        userManagerServiceURL = await self.getServiceURL("USER_MANAGER")
+        mainMessage = {"USER_COUNT" : userCount}
+        messageToSend = {"TYPE" : "ADDITIONAL_USERS" , "DATA" : mainMessage}
+
+        headersToSend = {"SESSION_SUPERVISOR_ID": self.ID}
+
+        self.logger.info("SENDING ADDITONAL USER DEMAND ")
+        await asyncio.to_thread(requests.post, f"http://{userManagerServiceURL}/SessionSupervisor/NewSession" , json=messageToSend, headers=headersToSend)
+
+
+
     # Initial Setup for the Rendering Process
     async def RenderingProcessInititalSetup(self):
         while True:
             if len(self.userList) == 0:
                 userManagerServiceURL = await self.getServiceURL("USER_MANAGER")
-                # mainMessage = {"USER_COUNT" : 1}
-                mainMessage = {"USER_COUNT" : "ALL"}
+                mainMessage = {"USER_COUNT" : 1}
+                # mainMessage = {"USER_COUNT" : "ALL"}
                 messageToSend = {"TYPE" : "NEW_SESSION" , "DATA" : mainMessage}
                 # messageInJson = json.dumps(messageToSend)
 
@@ -473,6 +499,9 @@ class renderingSupervisor:
                         break
             else:
                 break
+
+        
+        
 
 
 # Main Process Management Section END !!! --------------------------------------------------------------------------------------------------------------------------------------
@@ -507,6 +536,7 @@ class sessionSupervisorService:
         await self.supervisor.RenderingProcessInititalSetup()
 
         self.savedBlendFilePath = await self.supervisor.saveBlendFileBinary(renderingInfo['DATA_BINARY_BLENDFILE'] , self.customerEmail)
+        self.supervisor.saveBlendFileBinary = self.savedBlendFilePath
 
         self.logger.info(f"Blend File Saved at : {self.savedBlendFilePath}")
 
@@ -600,6 +630,9 @@ class sessionSupervisorService:
     async def handleUserManagerMessages(self, userManagerMessage, response=False, headers=None):
         msgType = userManagerMessage['TYPE']
         msgData = userManagerMessage['DATA']
+
+        self.logger.info("Received Message from User Manager")
+        self.logger.info(f"Message Type : {msgType}")
 
         responseMsg = None
 
