@@ -11,6 +11,8 @@ from fastapi import Request,  Response
 
 import requests
 
+import pickle
+
 sys.path.append(os.path.join(os.path.dirname(__file__), "../ServiceTemplates/Basic"))
 
 from HTTP_SERVER import HTTPServer
@@ -35,12 +37,26 @@ class CommunicationInterfaceService():
 
 
 
-    async def sendMessageToUserManager(self, userManagerMessage):
+    async def sendMessageToUserManager(self, userManagerMessage, headers=None):
         print("Sending Message to User Manager")
         exchangeName = "USER_MANAGER_EXCHANGE"
         routing_key = "UME_USER_SERVER"
-        messageInJson = json.dumps(userManagerMessage)
-        await self.messageQueue.PublishMessage(exchangeName, routing_key, messageInJson)
+
+        if headers and "DATA_FORMAT" in headers:
+            if headers["DATA_FORMAT"] == "BYTES":
+                messageInBytes = pickle.dumps(userManagerMessage)
+                await self.messageQueue.PublishMessage(exchangeName, routing_key, messageInBytes, headers)
+                return
+            else:
+                messageInJson = json.dumps(userManagerMessage)
+                await self.messageQueue.PublishMessage(exchangeName, routing_key, messageInJson, headers)
+                return
+        else:
+            messageInJson = json.dumps(userManagerMessage)
+            await self.messageQueue.PublishMessage(exchangeName, routing_key, messageInJson)
+
+        # messageInJson = json.dumps(userManagerMessage)
+        # await self.messageQueue.PublishMessage(exchangeName, routing_key, messageInJson)
         print("Message Sent to User Manager")
 
     async def SendMessageToHttpServer(self, messageToSend):
@@ -101,13 +117,14 @@ class CommunicationInterfaceService():
 
 
 
-    async def handleUserHttpServerMessages(self, UserHttpServerMessage, response=False):
+    async def handleUserHttpServerMessages(self, UserHttpServerMessage, response=False, headers=None):
         msgType = UserHttpServerMessage['TYPE']
         msgData = UserHttpServerMessage['DATA']
         responseMsg = None
         if msgType == "MESSAGE_FOR_USER_MANAGER":
             print("User Http Server Asked to Forward Message to User Manager")
-            await self.sendMessageToUserManager(msgData)
+            print()
+            await self.sendMessageToUserManager(msgData, headers=headers)
             responseMsg = {"STATUS" : "SUCCESS"}
         else:
             print("Unknown Message Type")
@@ -118,10 +135,26 @@ class CommunicationInterfaceService():
             return responseMsg
 
     async def callbackUserHttpServerMessages(self, message):
-        DecodedMessage = message.body.decode()
-        DecodedMessage = json.loads(DecodedMessage)
+        # DecodedMessage = message.body.decode()
+        # DecodedMessage = json.loads(DecodedMessage)
 
-        asyncio.create_task(self.handleUserHttpServerMessages(DecodedMessage))
+        DecodedMessage = None
+
+        headers = message.headers
+        print(f"Communication Interface Headers Received : {message.headers}")
+
+        if headers and "DATA_FORMAT" in headers:
+            if headers["DATA_FORMAT"] == "BYTES":
+                print("Bytes")
+                DecodedMessage = pickle.loads(message.body)
+            else:
+                DecodedMessage = message.body.decode()
+                DecodedMessage = json.loads(DecodedMessage)
+        else:
+            DecodedMessage = message.body.decode()
+            DecodedMessage = json.loads(DecodedMessage)
+
+        asyncio.create_task(self.handleUserHttpServerMessages(DecodedMessage, headers=headers))
         
 
 

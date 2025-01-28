@@ -4,6 +4,7 @@ import os
 import threading
 
 import json
+import pickle
 
 from fastapi import Request,  Response
 from fastapi.responses import JSONResponse
@@ -59,7 +60,19 @@ class UserManagerService:
         async def handlePostUserServer():
             pass
 
-    
+    async def sendMessageToSessionSupervisor(self, exchangeName, supervisorRoutingKey, messageToSend, headers=None):
+        if headers and "DATA_FORMAT" in headers:
+            if headers["DATA_FORMAT"] == "BYTES":
+                messageInBytes = pickle.dumps(messageToSend)
+                await self.messageQueue.PublishMessage(exchangeName, supervisorRoutingKey, messageInBytes, headers)
+                return
+            else:
+                messageInJson = json.dumps(messageToSend)
+                await self.messageQueue.PublishMessage(exchangeName, supervisorRoutingKey, messageInJson, headers)
+                return
+        else:
+            messageInJson = json.dumps(messageToSend)
+            await self.messageQueue.PublishMessage(exchangeName, supervisorRoutingKey, messageInJson)
 
 
     async def handleSupervisorMessages(self, supervisorMessage, Headers, response=False):
@@ -182,23 +195,28 @@ class UserManagerService:
         await self.handleCustomerServerMessages(DecodedMessage)
 
 
-    async def handleUserServerMessages(self, userServerMessage, response=False):
+    async def handleUserServerMessages(self, userServerMessage, response=False, headers=None):
         msgType = userServerMessage['TYPE']
         msgData = userServerMessage['DATA']
         responseMsg = None
         if msgType == "USER_MESSAGE":
+            # userId = msgData["USER_ID"]
+            # userMessage = msgData["MESSAGE"]
+            # mainMessage = {"USER_ID" : userId , "MESSAGE" : userMessage}
+
             userId = msgData["USER_ID"]
-            userMessage = msgData["MESSAGE"]
 
             supervisorID = self.userToSupervisorIdMapping[userId]
             supervisorRoutingKey = self.supervisorToRoutingKeyMapping[supervisorID]
 
             exchangeName = "SESSION_SUPERVISOR_EXCHANGE"
 
-            mainMessage = {"USER_ID" : userId , "MESSAGE" : userMessage}
+
+            mainMessage = msgData
             messageToSend = {"TYPE" : "USER_MESSAGE" , "DATA" : mainMessage}
 
-            await self.messageQueue.PublishMessage(exchangeName, supervisorRoutingKey, messageToSend)
+            await self.sendMessageToSessionSupervisor(exchangeName, supervisorRoutingKey, messageToSend, headers=headers)
+            # await self.messageQueue.PublishMessage(exchangeName, supervisorRoutingKey, messageToSend, headers=headers)
         elif msgType == "NEW_USER":
             self.users.append(msgData["USER_ID"])
             print("New User Added")
@@ -213,10 +231,13 @@ class UserManagerService:
 
                 exchangeName = "SESSION_SUPERVISOR_EXCHANGE"
 
-                mainMessage = {"USER_ID" : userId , "TYPE" : "DISCONNECT"}
-                messageToSend = {"TYPE" : "USER_MESSAGE" , "DATA" : mainMessage}
+                mainMessage = {"TYPE" : "USER_DISCONNECT" , "DATA" : msgData}
+                messageToSend = {"TYPE" : "USER_MANAGER_MESSAGE" , "DATA" : mainMessage}
 
-                await self.messageQueue.PublishMessage(exchangeName, supervisorRoutingKey, messageToSend)
+                print(msgData.keys())
+
+                await self.sendMessageToSessionSupervisor(exchangeName, supervisorRoutingKey, messageToSend, headers=headers)
+                # await self.messageQueue.PublishMessage(exchangeName, supervisorRoutingKey, messageToSend, headers=headers)
             
             print("User Removed")
             print("Users: ", self.users)
@@ -229,10 +250,29 @@ class UserManagerService:
             return responseMsg
 
     async def callbackUserServerMessages(self, message):
-        DecodedMessage = message.body.decode()
-        DecodedMessage = json.loads(DecodedMessage)
 
-        await self.handleUserServerMessages(DecodedMessage)
+        # DecodedMessage = message.body.decode()
+        # DecodedMessage = json.loads(DecodedMessage)
+
+        DecodedMessage = None
+
+        headers = message.headers   
+        print(f"User Server Headers Received : {message.headers}")
+
+        if headers and "DATA_FORMAT" in headers:
+            if headers["DATA_FORMAT"] == "BYTES":
+                print("Bytes")
+                DecodedMessage = pickle.loads(message.body)
+            else:
+                DecodedMessage = message.body.decode()
+                DecodedMessage = json.loads(DecodedMessage)
+        else:
+            DecodedMessage = message.body.decode()
+            DecodedMessage = json.loads(DecodedMessage)
+
+
+        asyncio.create_task(self.handleUserServerMessages(DecodedMessage, headers=headers))
+        # await self.handleUserServerMessages(DecodedMessage)
 
 
 

@@ -53,6 +53,8 @@ class renderingSupervisor:
 
         self.logger.info(f"{type(self.messageQueue)}")
 
+        self.renderedImagesFolder = "RenderedImages"
+
 # Basic Utility Section !!! ----------------------------------------------------------------------------------------------------------------------------------------------------
 
     async def getServiceURL(self, serviceName):
@@ -95,7 +97,11 @@ class renderingSupervisor:
         fiteredFrames = [frame for frame in userFrames if self.frameStatus[frame] == False]
         del self.userIdToFrames[userId]
 
+        self.logger.info(f"User : {userId} Disconnected")
+        self.logger.info(f"Frames to be Reassigned : {fiteredFrames}")
         await self.distributeFrameAmongUsersAndSend(fiteredFrames, overwrite=False, extend=True)
+
+        self.logger.info(f"Redisribution of Frames Completed")
 
 
 
@@ -126,16 +132,14 @@ class renderingSupervisor:
     async def handleUserMessages(self, userMessage, response=False):
         msgType = userMessage['TYPE']
         msgData = userMessage['DATA']
+        userId = userMessage["USER_ID"]
         
         if msgType == "MESSAGE":
-            userId = msgData['USER_ID']
             mainMessage = msgData['MESSAGE']
             print(f"Received the following messageF rom User : {userId}")
             print(f"Message : {mainMessage}")
         elif msgType == "FRAME_RENDERED":
-            userId = msgData['USER_ID']
-            dataFrameRendered = msgData['DATA_FRAME_RENDERED']
-            await self.FrameRenderCompleted(userId, dataFrameRendered)
+            await self.FrameRenderCompleted(userId, msgData)
         elif msgType == "RENDERING_COMPLETED":
             userId = msgData['USER_ID']
             await self.UserRenderingProcessCompleted(userId)
@@ -150,10 +154,15 @@ class renderingSupervisor:
         msgType = userManagerMessage['TYPE'] 
         msgData = userManagerMessage['DATA']
 
-        if msgType == "DISCONNECT":
+        responseMsg = None
+        if msgType == "USER_DISCONNECT":
             await self.handleSingleUserDisconnect(msgData['USER_ID'])
+            responseToSend = {"STATUS" : "SUCCESS" , "MESSAGE" : "USER_DISCONNECT_HANDLED"}
+            responseMsg = JSONResponse(content=responseToSend , status_code=200)
         elif msgType == "ADDITIONAL_USER_LIST":
             await self.handleMultipleUserAddition(msgData['LIST_USER_ID'])
+            responseToSend = {"STATUS" : "SUCCESS" , "MESSAGE" : "USER_DISCONNECT_HANDLED"}
+            responseMsg = JSONResponse(content=responseToSend , status_code=200)
         else:
             responseToSend = {"STATUS" : "ERROR" , "MESSAGE" : "INVALID MESSAGE TYPE"}
             responseMsg = JSONResponse(content=responseToSend , status_code=400)
@@ -223,10 +232,10 @@ class renderingSupervisor:
         for userNumber in range(numberOfUsers):
             newAddedFrames = frameList[userNumber :: numberOfUsers]
             if overwrite:
-                self.idToFrames[self.userList[userNumber]] = newAddedFrames
+                self.userIdToFrames[self.userList[userNumber]] = newAddedFrames
                 await self.sendFramesToSingleUser(self.userList[userNumber] , newAddedFrames , overwrite=True)
             elif extend:
-                self.idToFrames[self.userList[userNumber]] = newAddedFrames
+                self.userIdToFrames[self.userList[userNumber]].extend(newAddedFrames)
                 await self.sendFramesToSingleUser(self.userList[userNumber] , newAddedFrames , extend=True)
             else:
                 self.idToFrames[self.userList[userNumber]] = newAddedFrames
@@ -392,6 +401,9 @@ class renderingSupervisor:
         with open(f"{input_file_path}/{str(file_name)}.blend" , "wb") as file:
             file.write(binaryBlendData)
         
+
+        self.renderedImagesFolder = renderer_images_path    
+
         return f"{input_file_path}/{str(file_name)}" + ".blend"
 
 
@@ -585,7 +597,7 @@ class sessionSupervisorService:
 
 
 
-    async def handleUserManagerMessages(self, userManagerMessage, response=False):
+    async def handleUserManagerMessages(self, userManagerMessage, response=False, headers=None):
         msgType = userManagerMessage['TYPE']
         msgData = userManagerMessage['DATA']
 
@@ -603,10 +615,26 @@ class sessionSupervisorService:
             return responseMsg
 
     async def callbackUserManagerMessages(self, message):
-        DecodedMessage = message.body.decode()
-        DecodedMessage = json.loads(DecodedMessage)
 
-        await self.handleUserManagerMessages(DecodedMessage)
+        # DecodedMessage = message.body.decode()
+        # DecodedMessage = json.loads(DecodedMessage)
+
+        DecodedMessage = None
+        headers = message.headers
+
+        if headers and "DATA_FORMAT" in headers:
+            if headers["DATA_FORMAT"] == "BYTES":
+                self.logger.info("Decoding Bytes Message")
+                DecodedMessage = pickle.loads(message.body)
+            else:
+                DecodedMessage = message.body.decode()
+                DecodedMessage = json.loads(DecodedMessage)
+        else:
+            DecodedMessage = message.body.decode()
+            DecodedMessage = json.loads(DecodedMessage)
+        
+
+        await self.handleUserManagerMessages(DecodedMessage, headers=headers)
 
 
 

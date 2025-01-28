@@ -27,24 +27,27 @@ class userHttpServerService:
 
 
 
-    async def handleUserMessage(self, userMessage):
+    async def handleUserMessage(self, userMessage, userID):
         msgType = userMessage['TYPE']
         msgData = userMessage['DATA']
         if msgType == "FRAME_RENDERED":
-            message = msgData["MESSAGE"]
-            userId = msgData["USER_ID"]
-            mainMessage = {"MESSAGE" : msgData , "USER_ID" : userId}
+            userId = userID
+
+            # mainMessage = {"MESSAGE" : msgData , "USER_ID" : userId}
+            # mainMessage = userMessage
+            mainMessage = {"TYPE" : msgType , "DATA" : msgData, "USER_ID" : userId}
+
             messageToSend = {"TYPE" : "USER_MESSAGE" , "DATA" : mainMessage}
-            await self.sendMessageToUserManager(messageToSend)
+            await self.sendMessageToUserManager(messageToSend, bytes=True)
             return JSONResponse(content={"DATA" : "RECEIVED" , "TIME" : time.time()}, status_code=200)
         elif msgType == "RENDER_COMPLETED":
-            userId = msgData["USER_ID"]
+            userId = userID
             mainMessage = {"MESSAGE" : msgData , "USER_ID" : userId}
             messageToSend = {"TYPE" : "USER_MESSAGE" , "DATA" : mainMessage}
             self.sendMessageToUserManager(messageToSend)
             return JSONResponse(content={"DATA" : "RECEIVED" , "TIME" : time.time()}, status_code=200)
         elif msgType == "TEST":  
-            print("Test message Received : " , message["DATA"])
+            print("Test message Received : " , msgData["TEST"])
             return JSONResponse(content={"DATA" : "RECEIVED" , "TIME" : time.time()}, status_code=200)
         else:
             print("Received Normal Message !!!")
@@ -97,7 +100,9 @@ class userHttpServerService:
             else:
                 data = await request.json()
 
-            requestResponse = await self.handleUserMessage(data)
+            userId = data["USER_ID"]
+            userMessage = data["MAIN_DATA"]
+            requestResponse = await self.handleUserMessage(userMessage,userId)
             return requestResponse
 
 
@@ -136,13 +141,20 @@ class userHttpServerService:
         
 
 
-    async def sendMessageToUserManager(self, mainMessage):
+    async def sendMessageToUserManager(self, mainMessage, bytes=False):
         exchangeName = "COMMUNICATION_INTERFACE_EXCHANGE"
         routingKey = "CIE_USER_HTTP_SERVER"
 
         messageToSend = {"TYPE" : "MESSAGE_FOR_USER_MANAGER" , "DATA" : mainMessage}
 
-        await self.messageQueue.PublishMessage(exchangeName, routingKey, messageToSend)
+        if bytes:
+            messageInBytes = pickle.dumps(messageToSend)
+            headersToSend = {'DATA_FORMAT': 'BYTES'}
+            await self.messageQueue.PublishMessage(exchangeName, routingKey, messageInBytes, headers=headersToSend)
+        else:
+            messageInJson = json.dumps(messageToSend)
+            await self.messageQueue.PublishMessage(exchangeName, routingKey, messageInJson)
+
 
     async def startService(self):
         await self.messageQueue.InitializeConnection()
